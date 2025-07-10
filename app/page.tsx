@@ -232,9 +232,7 @@ export default function SummerHoopsScheduler() {
         <div className="max-w-md mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center">
-                <span className="text-white font-bold text-sm">🏀</span>
-              </div>
+              <img src="/summerHoopsLogo.png" alt="Summer Hoops Logo" className="w-8 h-8 rounded-full" />
               <div>
                 <h1 className="font-bold text-lg text-gray-900">Summer Hoops</h1>
                 {loggedInUser ? (
@@ -248,7 +246,7 @@ export default function SummerHoopsScheduler() {
               {loggedInUser ? (
                 <>
                   <Avatar className="w-8 h-8">
-                    <AvatarImage src={loggedInUser.image || "/placeholder.svg"} alt={loggedInUser.name || "User"} />
+                    <AvatarImage src={loggedInUser.image || "/summerHoopsLogo.png"} alt={loggedInUser.name || "User"} />
                     <AvatarFallback>
                       {loggedInUser.name
                         ?.split(" ")
@@ -367,7 +365,7 @@ export default function SummerHoopsScheduler() {
                                             style={playerColor ? { backgroundColor: playerColor, color: '#fff' } : {}}
                                           >
                                             <Avatar className="w-4 h-4">
-                                              <AvatarImage src={"/placeholder.svg"} />
+                                              <AvatarImage src={"/summerHoopsLogo.png"} />
                                               <AvatarFallback className="text-xs">
                                                 {playerId
                                                   .split(" ")
@@ -481,7 +479,7 @@ export default function SummerHoopsScheduler() {
                           <CardContent className="flex flex-col gap-2">
                             <div className="flex items-center gap-2">
                               <Avatar className="w-6 h-6">
-                                <AvatarImage src={"/placeholder.svg"} />
+                                <AvatarImage src={"/summerHoopsLogo.png"} />
                                 <AvatarFallback className="text-xs">
                                   {slot.Player.split(" ").map((n: string) => n[0]).join("")}
                                 </AvatarFallback>
