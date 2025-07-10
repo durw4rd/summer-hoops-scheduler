@@ -241,3 +241,104 @@ export async function getAllSlots() {
     return slot;
   });
 }
+
+export async function acceptSlotSwap({ date, time, player, requestedDate, requestedTime, acceptingPlayer }: { date: string; time: string; player: string; requestedDate: string; requestedTime: string; acceptingPlayer: string }) {
+  const sheets = await getGoogleSheetsClient();
+  const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
+  // Find the swap request row
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: 'Slots for grabs',
+  });
+  const values = res.data.values || [];
+  const header = values[0];
+  const rows = values.slice(1);
+  const idx = rows.findIndex(row =>
+    row[0] === date &&
+    row[1] === time &&
+    row[2] === player &&
+    row[3] === 'offered' &&
+    row[4] === 'yes' &&
+    row[5] === requestedDate &&
+    row[6] === requestedTime
+  );
+  if (idx === -1) throw new Error('Swap request not found');
+  const rowNumber = idx + 2; // +2 for 1-based index and header
+  const now = new Date().toISOString();
+  // Update Status (D), ClaimedBy (H), Timestamp (I)
+  await sheets.spreadsheets.values.batchUpdate({
+    spreadsheetId,
+    requestBody: {
+      valueInputOption: 'USER_ENTERED',
+      data: [
+        { range: `Slots for grabs!D${rowNumber}`, values: [['claimed']] },
+        { range: `Slots for grabs!H${rowNumber}`, values: [[acceptingPlayer]] },
+        { range: `Slots for grabs!I${rowNumber}`, values: [[now]] },
+      ],
+    },
+  });
+
+  // --- Swap players in Daily schedule sheet ---
+  // Fetch the relevant range (B5:C28)
+  const scheduleRange = 'Daily schedule!B5:C28';
+  const scheduleRes = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: scheduleRange,
+  });
+  const scheduleRows = scheduleRes.data.values || [];
+
+  // Helper to parse session details from column B
+  function parseSessionDetails(details: string) {
+    // Format: 'DD.MM / weekDay / HH:MM - HH:MM'
+    const [datePart, , timePart] = details.split(' / ');
+    return { date: datePart.trim(), time: timePart.trim() };
+  }
+
+  let offerRowIdx = -1;
+  let requestRowIdx = -1;
+  let offerPlayers: string[] = [];
+  let requestPlayers: string[] = [];
+
+  for (let i = 0; i < scheduleRows.length; i++) {
+    const [details, playerList] = scheduleRows[i];
+    if (!details) continue;
+    const { date: rowDate, time: rowTime } = parseSessionDetails(details);
+    if (rowDate === date && rowTime === time) {
+      offerRowIdx = i;
+      offerPlayers = (playerList || '').split(',').map((p: string) => p.trim()).filter(Boolean);
+    }
+    if (rowDate === requestedDate && rowTime === requestedTime) {
+      requestRowIdx = i;
+      requestPlayers = (playerList || '').split(',').map((p: string) => p.trim()).filter(Boolean);
+    }
+  }
+  if (offerRowIdx === -1 || requestRowIdx === -1) throw new Error('Session(s) not found in schedule');
+
+  // Swap the players
+  // Remove offering player from their slot, add accepting player
+  offerPlayers = offerPlayers.filter(p => p.toLowerCase() !== player.toLowerCase());
+  if (!offerPlayers.includes(acceptingPlayer)) offerPlayers.push(acceptingPlayer);
+  // In the target session, replace accepting player with offering player
+  const acceptingIdx = requestPlayers.findIndex(p => p.toLowerCase() === acceptingPlayer.toLowerCase());
+  if (acceptingIdx !== -1) {
+    requestPlayers.splice(acceptingIdx, 1, player);
+  } else if (!requestPlayers.includes(player)) {
+    requestPlayers.push(player);
+  }
+
+  // Write back the updated player lists
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `Daily schedule!C${offerRowIdx + 5}`,
+    valueInputOption: 'USER_ENTERED',
+    requestBody: { values: [[offerPlayers.join(', ')]] },
+  });
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `Daily schedule!C${requestRowIdx + 5}`,
+    valueInputOption: 'USER_ENTERED',
+    requestBody: { values: [[requestPlayers.join(', ')]] },
+  });
+
+  return { success: true };
+}

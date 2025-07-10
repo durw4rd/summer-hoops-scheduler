@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAvailableSlots, offerSlotForGrabs, claimSlot, retractSlot, getAllSlots, requestSlotSwap } from "@/lib/googleSheets";
+import { getAvailableSlots, offerSlotForGrabs, claimSlot, retractSlot, getAllSlots, requestSlotSwap, acceptSlotSwap } from "@/lib/googleSheets";
 
 export async function GET() {
   try {
@@ -70,6 +70,20 @@ export async function GET_SWAPS() {
     // Only rows with SwapRequested === 'yes'
     const swaps = slots.filter((slot: any) => slot.SwapRequested === 'yes');
     return NextResponse.json({ swaps });
+  } catch (error) {
+    return NextResponse.json({ error: (error as Error).message }, { status: 500 });
+  }
+}
+
+// New: handle PATCH /api/slots/swap to accept a swap request
+export async function PATCH_SWAP(req: Request) {
+  try {
+    const { date, time, player, requestedDate, requestedTime, acceptingPlayer } = await req.json();
+    if (!date || !time || !player || !requestedDate || !requestedTime || !acceptingPlayer) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+    const result = await acceptSlotSwap({ date, time, player, requestedDate, requestedTime, acceptingPlayer });
+    return NextResponse.json(result);
   } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 500 });
   }
