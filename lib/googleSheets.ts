@@ -46,13 +46,31 @@ export async function offerSlotForGrabs({ date, time, player }: { date: string; 
   const sheets = await getGoogleSheetsClient();
   const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
   const now = new Date().toISOString();
+  // New columns: Date, Time, Player, Status, SwapRequested, RequestedDate, RequestedTime, ClaimedBy, Timestamp
   await sheets.spreadsheets.values.append({
     spreadsheetId,
     range: 'Slots for grabs',
     valueInputOption: 'USER_ENTERED',
     insertDataOption: 'INSERT_ROWS',
     requestBody: {
-      values: [[date, time, player, 'offered', '', now]],
+      values: [[date, time, player, 'offered', 'no', '', '', '', now]],
+    },
+  });
+  return { success: true };
+}
+
+export async function requestSlotSwap({ date, time, player, requestedDate, requestedTime }: { date: string; time: string; player: string; requestedDate: string; requestedTime: string; }) {
+  const sheets = await getGoogleSheetsClient();
+  const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
+  const now = new Date().toISOString();
+  // New columns: Date, Time, Player, Status, SwapRequested, RequestedDate, RequestedTime, ClaimedBy, Timestamp
+  await sheets.spreadsheets.values.append({
+    spreadsheetId,
+    range: 'Slots for grabs',
+    valueInputOption: 'USER_ENTERED',
+    insertDataOption: 'INSERT_ROWS',
+    requestBody: {
+      values: [[date, time, player, 'offered', 'yes', requestedDate, requestedTime, '', now]],
     },
   });
   return { success: true };
@@ -76,17 +94,25 @@ export async function claimSlot({ date, time, player, claimer }: { date: string;
   if (idx === -1) throw new Error('Slot not found or already claimed');
   const rowNumber = idx + 2; // +2 for 1-based index and header
   const now = new Date().toISOString();
-  // Find the index of the 'ClaimedBy' column
-  const claimedByColIdx = header.findIndex((col: string) => col === 'ClaimedBy');
-  if (claimedByColIdx === -1) throw new Error("'ClaimedBy' column not found in Slots for grabs sheet");
-  // Update the row in Slots for grabs: Status, ClaimedBy, Timestamp
-  await sheets.spreadsheets.values.update({
+  // Update Status (D), ClaimedBy (H), Timestamp (I)
+  await sheets.spreadsheets.values.batchUpdate({
     spreadsheetId,
-    range: `Slots for grabs!D${rowNumber}:F${rowNumber}`,
-    valueInputOption: 'USER_ENTERED',
     requestBody: {
-      // D = Status, E = ClaimedBy, F = Timestamp
-      values: [['claimed', claimer, now]],
+      valueInputOption: 'USER_ENTERED',
+      data: [
+        {
+          range: `Slots for grabs!D${rowNumber}`,
+          values: [['claimed']],
+        },
+        {
+          range: `Slots for grabs!H${rowNumber}`,
+          values: [[claimer]],
+        },
+        {
+          range: `Slots for grabs!I${rowNumber}`,
+          values: [[now]],
+        },
+      ],
     },
   });
 
@@ -157,13 +183,25 @@ export async function retractSlot({ date, time, player }: { date: string; time: 
   if (idx === -1) throw new Error('Slot not found or not offered');
   const rowNumber = idx + 2; // +2 for 1-based index and header
   const now = new Date().toISOString();
-  // Update the row
-  await sheets.spreadsheets.values.update({
+  // Update Status (D), ClaimedBy (H), Timestamp (I)
+  await sheets.spreadsheets.values.batchUpdate({
     spreadsheetId,
-    range: `Slots for grabs!D${rowNumber}:F${rowNumber}`,
-    valueInputOption: 'USER_ENTERED',
     requestBody: {
-      values: [['retracted', '', now]],
+      valueInputOption: 'USER_ENTERED',
+      data: [
+        {
+          range: `Slots for grabs!D${rowNumber}`,
+          values: [['retracted']],
+        },
+        {
+          range: `Slots for grabs!H${rowNumber}`,
+          values: [['']],
+        },
+        {
+          range: `Slots for grabs!I${rowNumber}`,
+          values: [[now]],
+        },
+      ],
     },
   });
   return { success: true };
