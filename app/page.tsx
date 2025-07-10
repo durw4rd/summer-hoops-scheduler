@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -125,9 +125,9 @@ const availableSlots = [
 ]
 
 export default function SummerHoopsScheduler() {
-  const [schedule, setSchedule] = useState(initialSchedule)
+  const [schedule, setSchedule] = useState<any[]>([])
   const [openSlots, setOpenSlots] = useState(availableSlots)
-  const [selectedSession, setSelectedSession] = useState(null)
+  const [selectedSession, setSelectedSession] = useState<{ session: any; date: any; day: any } | null>(null)
   const [swapReason, setSwapReason] = useState("")
   const [swapTarget, setSwapTarget] = useState("")
   const [notifications, setNotifications] = useState([
@@ -140,19 +140,69 @@ export default function SummerHoopsScheduler() {
     },
   ])
 
-  const getPlayerName = (playerId) => {
+  // Helper to parse spreadsheet data into schedule structure
+  function parseScheduleData(raw: any[][]) {
+    if (!Array.isArray(raw) || raw.length === 0) return [];
+    // Assume first row is header if not a date, skip if so
+    const isHeader = isNaN(Date.parse(raw[0][0])) && !/^\d{2}\.\d{2}/.test(raw[0][0]);
+    const rows = isHeader ? raw.slice(1) : raw;
+    // Group by date
+    const scheduleMap: Record<string, any> = {};
+    rows.forEach((row) => {
+      const [dateTime, playersStr] = row;
+      if (!dateTime) return;
+      // Split dateTime: '15.07 / Monday / 6:00 - 7:00'
+      const [datePart, day, time] = dateTime.split(" / ").map((s: string) => s.trim());
+      const dateKey = `${datePart} / ${day}`;
+      if (!scheduleMap[dateKey]) {
+        scheduleMap[dateKey] = {
+          id: dateKey,
+          date: datePart,
+          day,
+          sessions: [],
+        };
+      }
+      scheduleMap[dateKey].sessions.push({
+        id: `${dateKey}-${time}`,
+        time,
+        hour: time,
+        players: playersStr ? playersStr.split(",").map((p: string) => p.trim()) : [],
+        maxPlayers: 8,
+        userAssigned: false, // You can update this based on logged-in user
+      });
+    });
+    return Object.values(scheduleMap);
+  }
+
+  // Fetch and parse schedule data
+  useEffect(() => {
+    async function fetchSchedule() {
+      try {
+        const res = await fetch("/api/schedule");
+        const json = await res.json();
+        if (json.data) {
+          setSchedule(parseScheduleData(json.data));
+        }
+      } catch (e) {
+        // Optionally handle error
+      }
+    }
+    fetchSchedule();
+  }, []);
+
+  const getPlayerName = (playerId: any) => {
     if (playerId === currentUser.id) return currentUser.name
-    const player = players.find((p) => p.id === playerId)
+    const player = players.find((p: any) => p.id === playerId)
     return player ? player.name : playerId
   }
 
-  const getPlayerAvatar = (playerId) => {
+  const getPlayerAvatar = (playerId: any) => {
     if (playerId === currentUser.id) return currentUser.avatar
-    const player = players.find((p) => p.id === playerId)
+    const player = players.find((p: any) => p.id === playerId)
     return player ? player.avatar : "/placeholder.svg?height=32&width=32"
   }
 
-  const handleOfferSlot = (session, gameDate, gameDay) => {
+  const handleOfferSlot = (session: any, gameDate: any, gameDay: any) => {
     const newAvailableSlot = {
       id: `available_${Date.now()}`,
       date: gameDate,
@@ -167,15 +217,15 @@ export default function SummerHoopsScheduler() {
     setOpenSlots([...openSlots, newAvailableSlot])
 
     // Remove user from the session
-    const updatedSchedule = schedule.map((game) => {
+    const updatedSchedule = schedule.map((game: any) => {
       if (game.date === gameDate) {
         return {
           ...game,
-          sessions: game.sessions.map((s) => {
+          sessions: game.sessions.map((s: any) => {
             if (s.id === session.id) {
               return {
                 ...s,
-                players: s.players.filter((p) => p !== currentUser.id),
+                players: s.players.filter((p: any) => p !== currentUser.id),
                 userAssigned: false,
               }
             }
@@ -196,13 +246,13 @@ export default function SummerHoopsScheduler() {
     })
   }
 
-  const handleClaimSlot = (slot) => {
+  const handleClaimSlot = (slot: any) => {
     // Add user to the session
-    const updatedSchedule = schedule.map((game) => {
+    const updatedSchedule = schedule.map((game: any) => {
       if (game.date === slot.date) {
         return {
           ...game,
-          sessions: game.sessions.map((s) => {
+          sessions: game.sessions.map((s: any) => {
             if (s.id === slot.sessionId) {
               return {
                 ...s,
@@ -220,7 +270,7 @@ export default function SummerHoopsScheduler() {
     setSchedule(updatedSchedule)
 
     // Remove from available slots
-    setOpenSlots(openSlots.filter((s) => s.id !== slot.id))
+    setOpenSlots(openSlots.filter((s: any) => s.id !== slot.id))
 
     toast({
       title: "Slot claimed successfully!",
@@ -228,7 +278,7 @@ export default function SummerHoopsScheduler() {
     })
   }
 
-  const formatDate = (dateString) => {
+  const formatDate = (dateString: any) => {
     const date = new Date(dateString)
     return date.toLocaleDateString("en-US", {
       weekday: "long",
@@ -237,7 +287,7 @@ export default function SummerHoopsScheduler() {
     })
   }
 
-  const isUpcoming = (dateString) => {
+  const isUpcoming = (dateString: any) => {
     const gameDate = new Date(dateString)
     const today = new Date()
     return gameDate >= today
@@ -245,7 +295,6 @@ export default function SummerHoopsScheduler() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50">
-      {/* Header */}
       <div className="bg-white border-b border-orange-200 sticky top-0 z-50">
         <div className="max-w-md mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
@@ -261,7 +310,7 @@ export default function SummerHoopsScheduler() {
             <div className="flex items-center space-x-2">
               <div className="relative">
                 <Bell className="w-5 h-5 text-gray-600" />
-                {notifications.some((n) => n.unread) && (
+                {notifications.some((n: any) => n.unread) && (
                   <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></div>
                 )}
               </div>
@@ -270,7 +319,7 @@ export default function SummerHoopsScheduler() {
                 <AvatarFallback>
                   {currentUser.name
                     .split(" ")
-                    .map((n) => n[0])
+                    .map((n: string) => n[0])
                     .join("")}
                 </AvatarFallback>
               </Avatar>
@@ -300,20 +349,15 @@ export default function SummerHoopsScheduler() {
               </Badge>
             </div>
 
-            {schedule.map((game) => (
+            {schedule.map((game: any) => (
               <Card key={game.id} className="border-l-4 border-l-orange-500">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg">{formatDate(game.date)}</CardTitle>
-                    {isUpcoming(game.date) && (
-                      <Badge variant="outline" className="text-green-600 border-green-600">
-                        Upcoming
-                      </Badge>
-                    )}
+                    <CardTitle className="text-lg">{game.day} ({game.date})</CardTitle>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {game.sessions.map((session) => (
+                  {game.sessions.map((session: any) => (
                     <div
                       key={session.id}
                       className={`p-4 rounded-lg border-2 ${
@@ -340,57 +384,11 @@ export default function SummerHoopsScheduler() {
                             {session.players.length}/{session.maxPlayers} players
                           </span>
                         </div>
-
-                        {session.userAssigned && (
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-xs bg-transparent"
-                                onClick={() => setSelectedSession({ session, date: game.date, day: game.day })}
-                              >
-                                Offer Up
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent className="max-w-sm mx-auto">
-                              <DialogHeader>
-                                <DialogTitle>Offer Up Your Slot</DialogTitle>
-                                <DialogDescription>
-                                  Offer your {session.hour} slot for {game.day} to the group.
-                                </DialogDescription>
-                              </DialogHeader>
-                              <div className="space-y-4">
-                                <div>
-                                  <Label htmlFor="reason">Reason (optional)</Label>
-                                  <Textarea
-                                    id="reason"
-                                    placeholder="e.g., Work conflict, family dinner..."
-                                    value={swapReason}
-                                    onChange={(e) => setSwapReason(e.target.value)}
-                                    className="mt-1"
-                                  />
-                                </div>
-                              </div>
-                              <DialogFooter>
-                                <Button
-                                  onClick={() =>
-                                    selectedSession &&
-                                    handleOfferSlot(selectedSession.session, selectedSession.date, selectedSession.day)
-                                  }
-                                  className="w-full bg-orange-500 hover:bg-orange-600"
-                                >
-                                  Offer to Group
-                                </Button>
-                              </DialogFooter>
-                            </DialogContent>
-                          </Dialog>
-                        )}
                       </div>
 
                       {session.players.length > 0 && (
                         <div className="mt-3 flex flex-wrap gap-1">
-                          {session.players.map((playerId) => (
+                          {session.players.map((playerId: any) => (
                             <div
                               key={playerId}
                               className="flex items-center space-x-1 bg-white rounded-full px-2 py-1 text-xs"
@@ -400,7 +398,7 @@ export default function SummerHoopsScheduler() {
                                 <AvatarFallback className="text-xs">
                                   {getPlayerName(playerId)
                                     .split(" ")
-                                    .map((n) => n[0])
+                                    .map((n: any) => n[0])
                                     .join("")}
                                 </AvatarFallback>
                               </Avatar>
@@ -418,65 +416,7 @@ export default function SummerHoopsScheduler() {
             ))}
           </TabsContent>
 
-          <TabsContent value="available" className="space-y-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-900">Available Slots</h2>
-              <Badge variant="secondary" className="bg-green-100 text-green-800">
-                {openSlots.length} open
-              </Badge>
-            </div>
-
-            {openSlots.length === 0 ? (
-              <Card>
-                <CardContent className="text-center py-8">
-                  <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
-                  <h3 className="font-medium text-gray-900 mb-1">All slots filled!</h3>
-                  <p className="text-sm text-gray-500">No available slots at the moment.</p>
-                </CardContent>
-              </Card>
-            ) : (
-              openSlots.map((slot) => (
-                <Card key={slot.id} className="border-l-4 border-l-green-500">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <h3 className="font-medium text-gray-900">
-                          {slot.day}, {slot.hour}
-                        </h3>
-                        <p className="text-sm text-gray-600">{slot.time}</p>
-                      </div>
-                      <Badge variant="outline" className="text-green-600 border-green-600">
-                        Available
-                      </Badge>
-                    </div>
-
-                    <div className="flex items-center space-x-2 mb-3">
-                      <Avatar className="w-6 h-6">
-                        <AvatarImage src={getPlayerAvatar(slot.offeredBy) || "/placeholder.svg"} />
-                        <AvatarFallback className="text-xs">
-                          {getPlayerName(slot.offeredBy)
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="text-sm text-gray-600">Offered by {getPlayerName(slot.offeredBy)}</span>
-                    </div>
-
-                    {slot.reason && <p className="text-sm text-gray-500 mb-3 italic">"{slot.reason}"</p>}
-
-                    <Button
-                      onClick={() => handleClaimSlot(slot)}
-                      className="w-full bg-green-500 hover:bg-green-600"
-                      size="sm"
-                    >
-                      Claim This Slot
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </TabsContent>
+          {/* Available slots tab can be re-enabled and implemented later */}
         </Tabs>
       </div>
     </div>
