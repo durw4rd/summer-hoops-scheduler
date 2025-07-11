@@ -3,23 +3,25 @@
 import { useState, useEffect } from "react"
 import { useSession, signIn, signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Calendar, Clock, Users, Gift } from "lucide-react"
+import { Calendar, Gift } from "lucide-react"
 import {
   Dialog,
-  DialogTrigger,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
   DialogClose,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { RadioGroup } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
+import ScheduleCard from "@/components/ScheduleCard";
+import SlotCard from "@/components/SlotCard";
+import Header from "@/components/Header";
+import SwapModal from "@/components/SwapModal";
+import ClaimConfirmationModal from "@/components/ClaimConfirmationModal";
 
 export default function SummerHoopsScheduler() {
   const { data: session } = useSession();
@@ -80,13 +82,13 @@ export default function SummerHoopsScheduler() {
   // 3. Filter the schedule to only show sessions where the player is scheduled
   const filteredSchedule = playerName
     ? schedule
-        .map((game: any) => ({
-          ...game,
-          sessions: game.sessions.filter((session: any) =>
-            session.players.some((p: string) => p.toLowerCase() === playerName!.toLowerCase())
-          ),
-        }))
-        .filter((game: any) => game.sessions.length > 0)
+      .map((game: any) => ({
+        ...game,
+        sessions: game.sessions.filter((session: any) =>
+          session.players.some((p: string) => p.toLowerCase() === playerName!.toLowerCase())
+        ),
+      }))
+      .filter((game: any) => game.sessions.length > 0)
     : [];
 
   // 5. Choose which schedule to display, then filter by upcoming
@@ -127,7 +129,7 @@ export default function SummerHoopsScheduler() {
         setAvailableSlots(json.slots.filter((slot: any) => slot.Status === 'offered'));
         setAllSlots(json.slots);
       }
-    } catch {}
+    } catch { }
     finally {
       setSlotsLoading(false);
     }
@@ -382,46 +384,33 @@ export default function SummerHoopsScheduler() {
     return playerColors[name] || '#E0E0E0'; // fallback to a neutral gray
   }
 
+  function handleClaimClick(slot: any, claimSessionId: string) {
+    // Check if user is already in the session
+    let isUserInSession = false;
+    if (playerName) {
+      for (const game of schedule) {
+        if (normalizeDate(game.date) === normalizeDate(slot.Date)) {
+          for (const session of game.sessions) {
+            if (session.time.trim() === slot.Time.trim()) {
+              if (session.players.some((p: string) => p.toLowerCase() === playerName.toLowerCase())) {
+                isUserInSession = true;
+              }
+            }
+          }
+        }
+      }
+    }
+    if (isUserInSession) {
+      setClaimConfirmOpen(true);
+      setPendingClaimSlot({ ...slot, claimSessionId });
+    } else {
+      handleClaimSlot(slot.Date, slot.Time, slot.Player, playerName!, claimSessionId);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50">
-      <div className="bg-white border-b border-orange-200 sticky top-0 z-50">
-        <div className="max-w-md mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <img src="/summerHoopsLogo.png" alt="Summer Hoops Logo" className="w-12 h-12 rounded-full" />
-              <div>
-                <h1
-                  className="text-3xl font-extrabold bg-gradient-to-r from-[#4CAF50] via-[#FFD600] to-[#FB8C00] bg-clip-text text-transparent drop-shadow-sm"
-                  style={{ letterSpacing: '0.03em' }}
-                >
-                  Summer Hoops
-                </h1>
-                {!loggedInUser && (
-                  <p className="text-xs text-gray-500">Please log in</p>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              {loggedInUser ? (
-                <>
-              <Avatar className="w-8 h-8">
-                    <AvatarImage src={loggedInUser.image || "/summerHoopsLogo.png"} alt={loggedInUser.name || "User"} />
-                <AvatarFallback>
-                      {loggedInUser.name
-                        ?.split(" ")
-                        .map((n: string) => n[0])
-                    .join("")}
-                </AvatarFallback>
-              </Avatar>
-                  <Button size="sm" variant="outline" onClick={() => signOut()}>Logout</Button>
-                </>
-              ) : (
-                <Button size="sm" variant="outline" onClick={() => signIn("google")}>Login with Google</Button>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+      <Header session={session} onSignIn={() => signIn("google") } onSignOut={signOut} />
 
       {/* 7. Show the chosen schedule */}
       <div className="max-w-md mx-auto px-4 py-6">
@@ -462,7 +451,7 @@ export default function SummerHoopsScheduler() {
                   >
                     {showPast ? "Hide Past Sessions" : "Show Past Sessions"}
                   </Button>
-            </div>
+                </div>
                 {scheduleLoading ? (
                   <div className="text-center text-gray-500 py-10">Loading schedule...</div>
                 ) : (
@@ -471,150 +460,17 @@ export default function SummerHoopsScheduler() {
                       <div className="text-center text-gray-500">No games scheduled{showAll ? "." : " for you."}</div>
                     ) : (
                       scheduleToDisplay.map((game: any) => (
-              <Card key={game.id} className="border-l-4 border-l-orange-500">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                              <CardTitle className="text-lg">{game.day} ({game.date})</CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                            {game.sessions.map((session: any) => {
-                              const sessionId = `${game.date}-${session.time}`;
-                              // Check if the logged-in user is a participant
-                              const isUserParticipant = playerName && session.players.some((p: string) => p.toLowerCase() === playerName!.toLowerCase());
-                              // Check if this user's slot is up for grabs
-                              let userSlot = isUserParticipant ? getSlotForSession(game.date, session.time, playerName!) : null;
-                              let userSwapSlot = null;
-                              if (isUserParticipant) {
-                                userSwapSlot = allSlots.find(
-                                  (slot: any) =>
-                                    normalizeDate(slot.Date) === normalizeDate(game.date) &&
-                                    slot.Time.trim() === session.time.trim() &&
-                                    slot.Player === playerName &&
-                                    slot.SwapRequested === 'yes' &&
-                                    slot.Status === 'offered'
-                                );
-                              }
-                              // Check if any slot is up for grabs in this session (not by this user)
-                              const otherSlot = session.players
-                                .map((p: string) => getSlotForSession(game.date, session.time, p))
-                                .find((slot: any) => slot && (!playerName || slot.Player !== playerName));
-                              return (
-                    <div
-                      key={session.id}
-                      className={`p-4 rounded-lg border-2 ${
-                                    playerName && session.players.some((p: string) => p.toLowerCase() === playerName!.toLowerCase())
-                                      ? "bg-orange-50 border-orange-200"
-                                      : "bg-gray-50 border-gray-200"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center justify-between w-full">
-                          <Badge
-                            variant={playerName && session.players.some((p: string) => p.toLowerCase() === playerName!.toLowerCase()) ? "default" : "secondary"}
-                            className={playerName && session.players.some((p: string) => p.toLowerCase() === playerName!.toLowerCase()) ? "bg-orange-500" : ""}
-                          >
-                            {session.hour}
-                          </Badge>
-                          <span className="text-sm text-gray-600 ml-2">
-                            {session.players.length}/{session.maxPlayers} players
-                          </span>
-                        </div>
-                                  </div>
-                                  {(!condensedMode && session.players.length > 0) && (
-                                    <div className="mt-3 flex flex-wrap gap-1">
-                                      {/* Group and count players to avoid duplicate keys and show +N for multiples */}
-                                      {(() => {
-                                        const playerCounts: Record<string, number> = {};
-                                        session.players.forEach((p: string) => {
-                                          playerCounts[p] = (playerCounts[p] || 0) + 1;
-                                        });
-                                        const uniquePlayers = Object.keys(playerCounts);
-                                        return uniquePlayers.map((playerId, idx) => {
-                                          const playerColor = userMapping[playerId]?.color;
-                                          const isCurrentUser = playerName && playerId.toLowerCase() === playerName.toLowerCase();
-                                          const count = playerCounts[playerId];
-                                          return (
-                                            <div
-                                              key={playerId + '-' + idx}
-                                              className={`flex items-center space-x-1 bg-white rounded-full px-2 py-1 text-xs ${isCurrentUser ? "font-bold text-orange-600" : ""}`}
-                                              style={playerColor ? { backgroundColor: playerColor, color: '#fff' } : {}}
-                                            >
-                                              <Avatar className="w-4 h-4">
-                                                <AvatarImage
-                                                  src={`/profile-${playerId.replace(/\s+/g, "").toLowerCase()}.png`}
-                                                  onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/summerHoopsLogo.png"; }}
-                                                />
-                                                <AvatarFallback className="text-xs">
-                                                  {playerId
-                                                    .split(" ")
-                                                    .map((n: string) => n[0])
-                                                    .join("")}
-                                                </AvatarFallback>
-                                              </Avatar>
-                                              <span>
-                                                {isCurrentUser ? "You" : playerId.split(" ")[0]}
-                                                {count > 1 && (
-                                                  <span className="ml-1 text-xs font-semibold">+{count - 1}</span>
-                                                )}
-                                              </span>
-                                            </div>
-                                          );
-                                        });
-                                      })()}
-                                    </div>
-                                  )}
-                                  {/* Slot for grabs actions */}
-                                  <div className="mt-3 flex flex-wrap gap-2">
-                                    {/* Offer slot button for the logged-in user */}
-                                    {isUserParticipant && !userSlot && (
-                                      <div className="flex gap-2">
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          disabled={slotActionLoading === sessionId}
-                                          onClick={() => handleOfferSlot(game.date, session.time, playerName!, sessionId)}
-                                        >
-                                          {slotActionLoading === sessionId ? "Offering..." : "Offer Slot For Grabs"}
-                                        </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                          onClick={() => handleRequestSwap({ Date: game.date, Time: session.time })}
-                                        >
-                                          Offer for Swap
-                                        </Button>
-                                      </div>
-                                    )}
-                                      {/* Show tag for user's slot offer type, only one at a time, and only for active offers, below player list or in same place if condensed */}
-                                    {isUserParticipant && (
-                                      userSwapSlot && userSwapSlot.Status === 'offered' ? (
-                                        <Badge className="bg-blue-200 text-blue-900 mt-2 mb-2">Up for Swap</Badge>
-                                      ) : userSlot && userSlot.Status === 'offered' ? (
-                                        <Badge className="bg-yellow-200 text-yellow-900 mt-2 mb-2">Up for Grabs</Badge>
-                                      ) : null
-                                    )}
-                                    {/* Claim slot button for other users */}
-                                    {!isUserParticipant && otherSlot && (
-                                      <Button
-                                        size="sm"
-                                        variant="default"
-                                        disabled={slotActionLoading === sessionId}
-                                        onClick={() => handleClaimSlot(game.date, session.time, otherSlot.Player, playerName!, sessionId)}
-                                      >
-                                        {slotActionLoading === sessionId ? "Claiming..." : `Claim ${otherSlot.Player.split(' ')[0]}'s Slot`}
-                              </Button>
-                                    )}
-                                    {/* Show indicator if a slot is up for grabs (for non-participants) */}
-                                    {!isUserParticipant && otherSlot && (
-                                      <Badge className="bg-yellow-200 text-yellow-900">{otherSlot.Player.split(' ')[0]}'s Slot Up For Grabs</Badge>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </CardContent>
-                        </Card>
+                        <ScheduleCard
+                          key={game.id}
+                          game={game}
+                          userMapping={userMapping}
+                          playerName={playerName}
+                          allSlots={allSlots}
+                          condensedMode={condensedMode}
+                          slotActionLoading={slotActionLoading}
+                          handleOfferSlot={handleOfferSlot}
+                          handleRequestSwap={handleRequestSwap}
+                        />
                       ))
                     )}
                   </>
@@ -625,8 +481,8 @@ export default function SummerHoopsScheduler() {
                 Please log in to view your schedule.
                 <div className="mt-4">
                   <Button size="sm" variant="default" onClick={() => signIn("google")}>Login with Google</Button>
-                                </div>
-                              </div>
+                </div>
+              </div>
             )}
           </TabsContent>
           <TabsContent value="available" className="space-y-4">
@@ -706,146 +562,45 @@ export default function SummerHoopsScheduler() {
                                 }
                               }
                             }
-                            const isOwner = playerName && slot.Player === playerName;
+                            const isOwner = !!(playerName && slot.Player === playerName);
                             const isInactive = slot.Status !== 'offered';
+                            // Accept swap eligibility logic
+                            const acceptSwapEligible = slot.SwapRequested === 'yes' && slot.Status === 'offered' && (() => {
+                              if (!playerName) return false;
+                              for (const game of schedule) {
+                                if (game.date === slot.RequestedDate) {
+                                  for (const session of game.sessions) {
+                                    if (session.time === slot.RequestedTime) {
+                                      return session.players.some((p: string) => p.toLowerCase() === playerName.toLowerCase());
+                                    }
+                                  }
+                                }
+                              }
+                              return false;
+                            })();
                             return (
-                              <Card
+                              <SlotCard
                                 key={idx}
-                                className={`border-l-4 ${slot.Status === 'offered' ? '' : slot.Status === 'claimed' ? 'border-l-green-400' : 'border-l-gray-400'}`}
-                                style={slot.Status === 'offered' ? {
-                                  borderLeftColor: getPlayerColor(slot.Player),
-                                  background: `linear-gradient(90deg, ${getPlayerColor(slot.Player)}11 0%, transparent 100%)` // subtle tint
-                                } : {}}
-                              >
-                                <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                                  <CardTitle className="text-md flex items-center gap-2">
-                                    <span>{slot.Date}</span>
-                                    <span className="text-gray-400">({getDayOfWeek(slot.Date)})</span>
-                                    <span className="text-gray-400">/</span>
-                                    <span>{slot.Time}</span>
-                                  </CardTitle>
-                                  <div className="flex gap-2">
-                                    {isOwner && slot.Status === 'offered' && (
-                                      <Badge className="bg-yellow-200 text-yellow-900">Your Slot</Badge>
-                                    )}
-                                    {slot.Status === 'claimed' && (
-                                      <Badge className="bg-green-200 text-green-900">Claimed</Badge>
-                                    )}
-                                    {slot.Status === 'retracted' && (
-                                      <Badge className="bg-gray-200 text-gray-900">Retracted</Badge>
-                                    )}
-                                    {/* Only show 'Already in!' badge if user is in the session and it's not their own offer */}
-                                    {!isOwner && isUserInSession && (
-                                      <Badge className="bg-orange-500 text-white">Already in!</Badge>
-                        )}
-                      </div>
-                                </CardHeader>
-                                <CardContent className="flex flex-col gap-2">
-                                  <div className="flex items-center gap-2">
-                                    <Avatar className="w-6 h-6">
-                                      <AvatarImage
-                                        src={`/profile-${slot.Player.replace(/\s+/g, "").toLowerCase()}.png`}
-                                        onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/summerHoopsLogo.png"; }}
-                                      />
-                                <AvatarFallback className="text-xs">
-                                        {slot.Player.split(" ").map((n: string) => n[0]).join("")}
-                                </AvatarFallback>
-                              </Avatar>
-                                    <span className="text-sm font-medium">
-                                      {isOwner ? "You" : slot.Player.split(" ")[0]}
-                              </span>
-                            </div>
-                                  {slot.SwapRequested === 'yes' ? (
-                                    <div className="flex flex-col gap-1 mb-2">
-                                      <Badge className="bg-blue-200 text-blue-900">Swap Offer</Badge>
-                                      <div className="text-xs text-blue-900">
-                                        Wants to swap for: <b>{slot.RequestedDate} / {slot.RequestedTime}</b>
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <Badge className="bg-yellow-200 text-yellow-900 mb-2">Up For Grabs</Badge>
-                                  )}
-                                  {isOwner && slot.Status !== 'offered' && slot.SwapRequested !== 'yes' && (
-                                    <div className="flex gap-2">
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => handleOfferSlot(slot.Date, slot.Time, slot.Player, `available-${idx}`)}
-                                      >
-                                        Offer for Grabs
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        variant="secondary"
-                                        onClick={() => handleRequestSwap(slot)}
-                                      >
-                                        Offer for Swap
-                                      </Button>
-                        </div>
-                      )}
-                                  {isOwner && slot.Status === 'offered' && (
-                                    <Button
-                                      size="sm"
-                                      variant="destructive"
-                                      disabled={slotActionLoading === `available-${idx}`}
-                                      onClick={() => handleRecallSlot(slot.Date, slot.Time, slot.Player, `recall-${idx}`)}
-                                    >
-                                      {slotActionLoading === `recall-${idx}` ? "Recalling..." : "Recall Slot"}
-                                    </Button>
-                                  )}
-                                  {slot.Status === 'claimed' && slot.ClaimedBy && (
-                                    <div className="text-xs text-green-700 mt-1">
-                                      Claimed by: <span className="font-semibold">{slot.ClaimedBy}</span>
-                    </div>
-                                  )}
-                                  {/* For swap requests, show Accept Swap button if user is eligible */}
-                                  {slot.SwapRequested === 'yes' && slot.Status === 'offered' && isEligibleForSwap(slot) && (
-                                    <Button
-                                      size="sm"
-                                      variant="default"
-                                      disabled={acceptSwapLoading === `${slot.Date}-${slot.Time}-${slot.Player}`}
-                                      onClick={() => handleAcceptSwap(slot)}
-                                    >
-                                      {acceptSwapLoading === `${slot.Date}-${slot.Time}-${slot.Player}` ? 'Accepting...' : 'Accept swap'}
-                                    </Button>
-                                  )}
-                                  {/* Claim button for non-owners, only if not already playing and not a swap offer */}
-                                  {!isOwner && slot.Status === 'offered' && slot.SwapRequested !== 'yes' && (
-                                    <Button
-                                      size="sm"
-                                      variant="default"
-                                      disabled={slotActionLoading === `available-${idx}`}
-                                      onClick={() => {
-                                        // Check if user is already in the session for this slot
-                                        let alreadyInSession = false;
-                                        for (const game of schedule) {
-                                          if (normalizeDate(game.date) === normalizeDate(slot.Date)) {
-                                            for (const session of game.sessions) {
-                                              if (session.time.trim() === slot.Time.trim()) {
-                                                if (session.players.some((p: string) => p.toLowerCase() === playerName?.toLowerCase())) {
-                                                  alreadyInSession = true;
-                                                }
-                                              }
-                                            }
-                                          }
-                                        }
-                                        if (alreadyInSession) {
-                                          setPendingClaimSlot({ ...slot, claimSessionId: `available-${idx}` });
-                                          setClaimConfirmOpen(true);
-                                        } else {
-                                          handleClaimSlot(slot.Date, slot.Time, slot.Player, playerName!, `available-${idx}`);
-                                        }
-                                      }}
-                                    >
-                                      {slotActionLoading === `available-${idx}` ? "Claiming..." : `Claim ${slot.Player.split(' ')[0]}'s Slot`}
-                                    </Button>
-                                  )}
-                </CardContent>
-              </Card>
+                                slot={slot}
+                                idx={idx}
+                                userMapping={userMapping}
+                                slotActionLoading={slotActionLoading}
+                                acceptSwapLoading={acceptSwapLoading}
+                                handleRecallSlot={handleRecallSlot}
+                                handleAcceptSwap={handleAcceptSwap}
+                                handleOfferSlot={handleOfferSlot}
+                                handleRequestSwap={handleRequestSwap}
+                                isOwner={isOwner}
+                                isInactive={isInactive}
+                                isUserInSession={isUserInSession}
+                                getPlayerColor={getPlayerColor}
+                                acceptSwapEligible={acceptSwapEligible}
+                                onClaimClick={handleClaimClick}
+                              />
                             );
                           })
                         )}
-            </div>
+                      </div>
                     );
                   })()
                 )}
@@ -855,93 +610,48 @@ export default function SummerHoopsScheduler() {
                 Please log in to view available slots.
                 <div className="mt-4">
                   <Button size="sm" variant="default" onClick={() => signIn("google")}>Login with Google</Button>
-                    </div>
-                    </div>
+                </div>
+              </div>
             )}
           </TabsContent>
         </Tabs>
       </div>
 
       {/* Swap Modal */}
-      <Dialog open={swapModalOpen} onOpenChange={setSwapModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Offer Slot for Swap</DialogTitle>
-            <DialogDescription>
-              You are offering to swap out of this session:
-            </DialogDescription>
-          </DialogHeader>
-          <div className="mb-4">
-            <div className="font-semibold mb-2">Your Slot Being Offered</div>
-            {swapSourceSlot && (
-              <div className="flex items-center gap-2">
-                <input type="radio" checked readOnly className="mr-2" />
-                <span>{swapSourceSlot.replace(/__/g, ' / ')}</span>
-              </div>
-            )}
-          </div>
-          <div className="mb-4">
-            <div className="font-semibold mb-2">Target Sessions (where you are not attending)</div>
-            <RadioGroup value={swapTarget} onValueChange={setSwapTarget}>
-              {getEligibleTargetSessions().map((session: any) => (
-                <div key={session.Date + session.Time} className="flex items-center gap-2">
-                  <input
-                    type="radio"
-                    id={`target-${session.Date}-${session.Time}`}
-                    name="swapTarget"
-                    value={`${session.Date}__${session.Time}`}
-                    checked={swapTarget === `${session.Date}__${session.Time}`}
-                    onChange={() => setSwapTarget(`${session.Date}__${session.Time}`)}
-                    className="mr-2"
-                  />
-                  <label htmlFor={`target-${session.Date}-${session.Time}`}>{session.Date} / {session.Time} ({session.Day})</label>
-                </div>
-              ))}
-            </RadioGroup>
-          </div>
-          <DialogFooter>
-            <Button onClick={handleConfirmSwap} disabled={!swapSourceSlot || !swapTarget || swapLoading}>
-              {swapLoading ? "Offering..." : "Confirm Swap Offer"}
-            </Button>
-            <DialogClose asChild>
-              <Button variant="outline">Cancel</Button>
-            </DialogClose>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <SwapModal
+        open={swapModalOpen}
+        onOpenChange={setSwapModalOpen}
+        sourceSlot={swapSourceSlot}
+        target={swapTarget}
+        onTargetChange={setSwapTarget}
+        eligibleSessions={getEligibleTargetSessions()}
+        onConfirm={handleConfirmSwap}
+        loading={swapLoading}
+      />
 
       {/* Claim Confirmation Modal */}
-      <Dialog open={claimConfirmOpen} onOpenChange={setClaimConfirmOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Claim Additional Spot?</DialogTitle>
-            <DialogDescription>
-              You are already attending this session. Are you sure you want to claim an additional spot?
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-end gap-2 mt-4">
-            <Button variant="outline" onClick={() => { setClaimConfirmOpen(false); setPendingClaimSlot(null); }}>Cancel</Button>
-            <Button
-              variant="default"
-              onClick={() => {
-                if (pendingClaimSlot) {
-                  handleClaimSlot(
-                    pendingClaimSlot.Date,
-                    pendingClaimSlot.Time,
-                    pendingClaimSlot.Player,
-                    playerName!,
-                    pendingClaimSlot.claimSessionId
-                  );
-                }
-                setClaimConfirmOpen(false);
-                setPendingClaimSlot(null);
-              }}
-            >
-              Yes, claim anyway
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ClaimConfirmationModal
+        open={claimConfirmOpen}
+        onOpenChange={setClaimConfirmOpen}
+        pendingSlot={pendingClaimSlot}
+        onConfirm={() => {
+          if (pendingClaimSlot) {
+            handleClaimSlot(
+              pendingClaimSlot.Date,
+              pendingClaimSlot.Time,
+              pendingClaimSlot.Player,
+              playerName!,
+              pendingClaimSlot.claimSessionId
+            );
+          }
+          setClaimConfirmOpen(false);
+          setPendingClaimSlot(null);
+        }}
+        onCancel={() => {
+          setClaimConfirmOpen(false);
+          setPendingClaimSlot(null);
+        }}
+      />
     </div>
   )
 }
