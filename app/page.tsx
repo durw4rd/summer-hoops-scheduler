@@ -486,7 +486,10 @@ export default function SummerHoopsScheduler() {
                                             style={playerColor ? { backgroundColor: playerColor, color: '#fff' } : {}}
                                           >
                                             <Avatar className="w-4 h-4">
-                                              <AvatarImage src={"/summerHoopsLogo.png"} />
+                                              <AvatarImage
+                                                src={`/profile-${playerId.replace(/\s+/g, "")}.png`}
+                                                onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/summerHoopsLogo.png"; }}
+                                              />
                                               <AvatarFallback className="text-xs">
                                                 {playerId
                                                   .split(" ")
@@ -660,7 +663,10 @@ export default function SummerHoopsScheduler() {
                                 <CardContent className="flex flex-col gap-2">
                                   <div className="flex items-center gap-2">
                                     <Avatar className="w-6 h-6">
-                                      <AvatarImage src={"/summerHoopsLogo.png"} />
+                                      <AvatarImage
+                                        src={`/profile-${slot.Player.replace(/\s+/g, "")}.png`}
+                                        onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/summerHoopsLogo.png"; }}
+                                      />
                                       <AvatarFallback className="text-xs">
                                         {slot.Player.split(" ").map((n: string) => n[0]).join("")}
                                       </AvatarFallback>
