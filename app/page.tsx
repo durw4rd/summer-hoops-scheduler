@@ -19,6 +19,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { RadioGroup } from "@/components/ui/radio-group";
+import { Switch } from "@/components/ui/switch";
 
 export default function SummerHoopsScheduler() {
   const { data: session } = useSession();
@@ -39,6 +40,8 @@ export default function SummerHoopsScheduler() {
   const [swapSourceSlot, setSwapSourceSlot] = useState<string>(""); // value: `${Date}__${Time}`
   const [swapTarget, setSwapTarget] = useState<string>(""); // value: `${Date}__${Time}`
   const [swapLoading, setSwapLoading] = useState(false);
+  const [condensedMode, setCondensedMode] = useState(false);
+  const [showOnlyMine, setShowOnlyMine] = useState(false);
 
   // 2. Find the logged-in user's player name using their email
   const loggedInUser = session?.user;
@@ -347,18 +350,51 @@ export default function SummerHoopsScheduler() {
     return date.toLocaleDateString(undefined, { weekday: 'short' }); // e.g., 'Mon', 'Tue'
   }
 
+  // Define a color map for up to 25 players (use the palette provided earlier)
+  const playerColors: Record<string, string> = {
+    "Nathan": "#4CAF50",
+    "Amit": "#81C784",
+    "Micha": "#388E3C",
+    "Andreas": "#A5D6A7",
+    "Bruno": "#FBC02D",
+    "Mark": "#FFF176",
+    "Kyle": "#FFD600",
+    "Vedran": "#FFB300",
+    "Jaime": "#FFA726",
+    "Vic": "#FB8C00",
+    "Shafiq": "#FF7043",
+    "Chris": "#FFCC80",
+    "Antoine": "#F57C00",
+    "Thibault": "#C0CA33",
+    "Tasos": "#D4E157",
+    "Fran": "#AED581",
+    "Romario": "#FFEB3B",
+    "Varun": "#F9A825",
+    "testMicha": "#C62828",
+    "Sam": "#8D6E63",
+    "Daryl": "#FFD54F",
+    "Ricardo": "#43A047"
+  };
+
+  function getPlayerColor(name: string) {
+    return playerColors[name] || '#E0E0E0'; // fallback to a neutral gray
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50">
       <div className="bg-white border-b border-orange-200 sticky top-0 z-50">
         <div className="max-w-md mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <img src="/summerHoopsLogo.png" alt="Summer Hoops Logo" className="w-8 h-8 rounded-full" />
+              <img src="/summerHoopsLogo.png" alt="Summer Hoops Logo" className="w-12 h-12 rounded-full" />
               <div>
-                <h1 className="font-bold text-lg text-gray-900">Summer Hoops</h1>
-                {loggedInUser ? (
-                  <p className="text-xs text-gray-500">Hi {loggedInUser.name?.split(" ")[0]}!</p>
-                ) : (
+                <h1
+                  className="text-3xl font-extrabold bg-gradient-to-r from-[#4CAF50] via-[#FFD600] to-[#FB8C00] bg-clip-text text-transparent drop-shadow-sm"
+                  style={{ letterSpacing: '0.03em' }}
+                >
+                  Summer Hoops
+                </h1>
+                {!loggedInUser && (
                   <p className="text-xs text-gray-500">Please log in</p>
                 )}
               </div>
@@ -402,8 +438,12 @@ export default function SummerHoopsScheduler() {
           <TabsContent value="schedule" className="space-y-4">
             {loggedInUser ? (
               <>
-            <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-bold text-gray-900">{showAll ? "All Games" : "Your Games"}</h2>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600">Condensed</span>
+                    <Switch checked={condensedMode} onCheckedChange={setCondensedMode} />
+                  </div>
                 </div>
                 <div className="flex flex-col sm:flex-row justify-end gap-2 mb-4">
                   <Button
@@ -441,7 +481,18 @@ export default function SummerHoopsScheduler() {
                               // Check if the logged-in user is a participant
                               const isUserParticipant = playerName && session.players.some((p: string) => p.toLowerCase() === playerName!.toLowerCase());
                               // Check if this user's slot is up for grabs
-                              const userSlot = isUserParticipant ? getSlotForSession(game.date, session.time, playerName!) : null;
+                              let userSlot = isUserParticipant ? getSlotForSession(game.date, session.time, playerName!) : null;
+                              let userSwapSlot = null;
+                              if (isUserParticipant) {
+                                userSwapSlot = allSlots.find(
+                                  (slot: any) =>
+                                    normalizeDate(slot.Date) === normalizeDate(game.date) &&
+                                    slot.Time.trim() === session.time.trim() &&
+                                    slot.Player === playerName &&
+                                    slot.SwapRequested === 'yes' &&
+                                    slot.Status === 'offered'
+                                );
+                              }
                               // Check if any slot is up for grabs in this session (not by this user)
                               const otherSlot = session.players
                                 .map((p: string) => getSlotForSession(game.date, session.time, p))
@@ -456,25 +507,19 @@ export default function SummerHoopsScheduler() {
                       }`}
                     >
                       <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center space-x-2">
-                          <Clock className="w-4 h-4 text-gray-600" />
-                        </div>
-                        <Badge
-                                      variant={playerName && session.players.some((p: string) => p.toLowerCase() === playerName!.toLowerCase()) ? "default" : "secondary"}
-                                      className={playerName && session.players.some((p: string) => p.toLowerCase() === playerName!.toLowerCase()) ? "bg-orange-500" : ""}
-                        >
-                          {session.hour}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <Users className="w-4 h-4 text-gray-600" />
-                          <span className="text-sm text-gray-600">
+                        <div className="flex items-center justify-between w-full">
+                          <Badge
+                            variant={playerName && session.players.some((p: string) => p.toLowerCase() === playerName!.toLowerCase()) ? "default" : "secondary"}
+                            className={playerName && session.players.some((p: string) => p.toLowerCase() === playerName!.toLowerCase()) ? "bg-orange-500" : ""}
+                          >
+                            {session.hour}
+                          </Badge>
+                          <span className="text-sm text-gray-600 ml-2">
                             {session.players.length}/{session.maxPlayers} players
                           </span>
                         </div>
                                   </div>
-                                  {session.players.length > 0 && (
+                                  {(!condensedMode && session.players.length > 0) && (
                                     <div className="mt-3 flex flex-wrap gap-1">
                                       {session.players.map((playerId: string) => {
                                         const playerColor = userMapping[playerId]?.color;
@@ -518,18 +563,22 @@ export default function SummerHoopsScheduler() {
                                         >
                                           {slotActionLoading === sessionId ? "Offering..." : "Offer Slot For Grabs"}
                                         </Button>
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
+                              <Button
+                                size="sm"
+                                variant="outline"
                                           onClick={() => handleRequestSwap({ Date: game.date, Time: session.time })}
                                         >
                                           Offer for Swap
                                         </Button>
                                       </div>
                                     )}
-                                    {/* Show indicator if user's slot is up for grabs */}
-                                    {isUserParticipant && userSlot && (
-                                      <Badge className="bg-yellow-200 text-yellow-900">Slot Up For Grabs</Badge>
+                                      {/* Show tag for user's slot offer type, only one at a time, and only for active offers, below player list or in same place if condensed */}
+                                    {isUserParticipant && (
+                                      userSwapSlot && userSwapSlot.Status === 'offered' ? (
+                                        <Badge className="bg-blue-200 text-blue-900 mt-2 mb-2">Up for Swap</Badge>
+                                      ) : userSlot && userSlot.Status === 'offered' ? (
+                                        <Badge className="bg-yellow-200 text-yellow-900 mt-2 mb-2">Up for Grabs</Badge>
+                                      ) : null
                                     )}
                                     {/* Claim slot button for other users */}
                                     {!isUserParticipant && otherSlot && (
@@ -569,13 +618,20 @@ export default function SummerHoopsScheduler() {
           <TabsContent value="available" className="space-y-4">
             {loggedInUser ? (
               <>
-                <div className="flex justify-end mb-4">
+                <div className="flex justify-end mb-4 gap-2">
                   <Button
                     size="sm"
                     variant={showInactiveSlots ? "default" : "outline"}
                     onClick={() => setShowInactiveSlots((v) => !v)}
                   >
                     {showInactiveSlots ? "Hide Inactive Offers" : "Show Inactive Offers"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={showOnlyMine ? "default" : "outline"}
+                    onClick={() => setShowOnlyMine((v) => !v)}
+                  >
+                    {showOnlyMine ? "Show All Offers" : "Show Only Mine"}
                   </Button>
                 </div>
                 {slotsLoading ? (
@@ -585,11 +641,14 @@ export default function SummerHoopsScheduler() {
                     const filteredSlots = showInactiveSlots
                       ? allSlots
                       : availableSlots;
+                    const mineFilteredSlots = showOnlyMine && playerName
+                      ? filteredSlots.filter((slot: any) => slot.Player === playerName)
+                      : filteredSlots;
                     // Before rendering filteredSlots in the Available Slots tab, sort and deduplicate:
                     const dedupedSortedSlots = (() => {
                       // Remove duplicate offers for the same session from the same user (keep most recent by Timestamp if available)
                       const seen = new Map();
-                      filteredSlots.forEach((slot: any) => {
+                      mineFilteredSlots.forEach((slot: any) => {
                         const key = `${slot.Date}__${slot.Time}__${slot.Player}`;
                         // If not seen or this one is newer, keep it
                         if (!seen.has(key) || (slot.Timestamp && seen.get(key).Timestamp < slot.Timestamp)) {
@@ -636,7 +695,14 @@ export default function SummerHoopsScheduler() {
                             const isOwner = playerName && slot.Player === playerName;
                             const isInactive = slot.Status !== 'offered';
                             return (
-                              <Card key={idx} className={`border-l-4 ${slot.Status === 'offered' ? 'border-l-yellow-400' : slot.Status === 'claimed' ? 'border-l-green-400' : 'border-l-gray-400'}`}>
+                              <Card
+                                key={idx}
+                                className={`border-l-4 ${slot.Status === 'offered' ? '' : slot.Status === 'claimed' ? 'border-l-green-400' : 'border-l-gray-400'}`}
+                                style={slot.Status === 'offered' ? {
+                                  borderLeftColor: getPlayerColor(slot.Player),
+                                  background: `linear-gradient(90deg, ${getPlayerColor(slot.Player)}11 0%, transparent 100%)` // subtle tint
+                                } : {}}
+                              >
                                 <CardHeader className="pb-2 flex flex-row items-center justify-between">
                                   <CardTitle className="text-md flex items-center gap-2">
                                     <span>{slot.Date}</span>
@@ -657,8 +723,8 @@ export default function SummerHoopsScheduler() {
                                     {/* Only show 'Already in!' badge if user is in the session and it's not their own offer */}
                                     {!isOwner && isUserInSession && (
                                       <Badge className="bg-orange-500 text-white">Already in!</Badge>
-                                    )}
-                                  </div>
+                        )}
+                      </div>
                                 </CardHeader>
                                 <CardContent className="flex flex-col gap-2">
                                   <div className="flex items-center gap-2">
@@ -667,14 +733,14 @@ export default function SummerHoopsScheduler() {
                                         src={`/profile-${slot.Player.replace(/\s+/g, "").toLowerCase()}.png`}
                                         onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/summerHoopsLogo.png"; }}
                                       />
-                                      <AvatarFallback className="text-xs">
+                                <AvatarFallback className="text-xs">
                                         {slot.Player.split(" ").map((n: string) => n[0]).join("")}
-                                      </AvatarFallback>
-                                    </Avatar>
+                                </AvatarFallback>
+                              </Avatar>
                                     <span className="text-sm font-medium">
                                       {isOwner ? "You" : slot.Player.split(" ")[0]}
-                                    </span>
-                                  </div>
+                              </span>
+                            </div>
                                   {slot.SwapRequested === 'yes' ? (
                                     <div className="flex flex-col gap-1 mb-2">
                                       <Badge className="bg-blue-200 text-blue-900">Swap Offer</Badge>
@@ -701,8 +767,8 @@ export default function SummerHoopsScheduler() {
                                       >
                                         Offer for Swap
                                       </Button>
-                                    </div>
-                                  )}
+                        </div>
+                      )}
                                   {isOwner && slot.Status === 'offered' && (
                                     <Button
                                       size="sm"
@@ -716,7 +782,7 @@ export default function SummerHoopsScheduler() {
                                   {slot.Status === 'claimed' && slot.ClaimedBy && (
                                     <div className="text-xs text-green-700 mt-1">
                                       Claimed by: <span className="font-semibold">{slot.ClaimedBy}</span>
-                                    </div>
+                    </div>
                                   )}
                                   {/* For swap requests, show Accept Swap button if user is eligible */}
                                   {slot.SwapRequested === 'yes' && slot.Status === 'offered' && isEligibleForSwap(slot) && (
@@ -740,12 +806,12 @@ export default function SummerHoopsScheduler() {
                                       {slotActionLoading === `available-${idx}` ? "Claiming..." : `Claim ${slot.Player.split(' ')[0]}'s Slot`}
                                     </Button>
                                   )}
-                                </CardContent>
-                              </Card>
+                </CardContent>
+              </Card>
                             );
                           })
                         )}
-                      </div>
+            </div>
                     );
                   })()
                 )}
