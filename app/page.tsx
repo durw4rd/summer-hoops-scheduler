@@ -2,26 +2,13 @@
 
 import { useState, useEffect } from "react"
 import { useSession, signIn, signOut } from "next-auth/react"
-import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Calendar, Gift } from "lucide-react"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogClose,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { RadioGroup } from "@/components/ui/radio-group";
-import { Switch } from "@/components/ui/switch";
-import ScheduleCard from "@/components/ScheduleCard";
-import SlotCard from "@/components/SlotCard";
 import Header from "@/components/Header";
 import SwapModal from "@/components/SwapModal";
 import ClaimConfirmationModal from "@/components/ClaimConfirmationModal";
+import ScheduleTab from "@/components/ScheduleTab";
+import AvailableSlotsTab from "@/components/AvailableSlotsTab";
 
 export default function SummerHoopsScheduler() {
   const { data: session } = useSession();
@@ -347,13 +334,6 @@ export default function SummerHoopsScheduler() {
     return false;
   }
 
-  // Add a helper function to compute the day of the week from a date string (DD.MM)
-  function getDayOfWeek(dateStr: string) {
-    const [day, month] = dateStr.split('.').map(Number);
-    const date = new Date(new Date().getFullYear(), month - 1, day);
-    return date.toLocaleDateString(undefined, { weekday: 'short' }); // e.g., 'Mon', 'Tue'
-  }
-
   // Define a color map for up to 25 players (use the palette provided earlier)
   const playerColors: Record<string, string> = {
     "Nathan": "#4CAF50",
@@ -427,192 +407,47 @@ export default function SummerHoopsScheduler() {
           </TabsList>
 
           <TabsContent value="schedule" className="space-y-4">
-            {loggedInUser ? (
-              <>
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold text-gray-900">{showAll ? "All Games" : "Your Games"}</h2>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-600">Condensed</span>
-                    <Switch checked={condensedMode} onCheckedChange={setCondensedMode} />
-                  </div>
-                </div>
-                <div className="flex flex-col sm:flex-row justify-end gap-2 mb-4">
-                  <Button
-                    size="sm"
-                    variant={showAll ? "default" : "outline"}
-                    onClick={() => setShowAll((v) => !v)}
-                  >
-                    {showAll ? "Show Only My Sessions" : "Show All Sessions"}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={showPast ? "default" : "outline"}
-                    onClick={() => setShowPast((v) => !v)}
-                  >
-                    {showPast ? "Hide Past Sessions" : "Show Past Sessions"}
-                  </Button>
-                </div>
-                {scheduleLoading ? (
-                  <div className="text-center text-gray-500 py-10">Loading schedule...</div>
-                ) : (
-                  <>
-                    {scheduleToDisplay.length === 0 ? (
-                      <div className="text-center text-gray-500">No games scheduled{showAll ? "." : " for you."}</div>
-                    ) : (
-                      scheduleToDisplay.map((game: any) => (
-                        <ScheduleCard
-                          key={game.id}
-                          game={game}
-                          userMapping={userMapping}
-                          playerName={playerName}
-                          allSlots={allSlots}
-                          condensedMode={condensedMode}
-                          slotActionLoading={slotActionLoading}
-                          handleOfferSlot={handleOfferSlot}
-                          handleRequestSwap={handleRequestSwap}
-                        />
-                      ))
-                    )}
-                  </>
-                )}
-              </>
-            ) : (
-              <div className="text-center text-gray-500 py-10">
-                Please log in to view your schedule.
-                <div className="mt-4">
-                  <Button size="sm" variant="default" onClick={() => signIn("google")}>Login with Google</Button>
-                </div>
-              </div>
-            )}
+            <ScheduleTab
+              scheduleToDisplay={scheduleToDisplay}
+              userMapping={userMapping}
+              playerName={playerName}
+              allSlots={allSlots}
+              condensedMode={condensedMode}
+              setCondensedMode={setCondensedMode}
+              slotActionLoading={slotActionLoading}
+              handleOfferSlot={handleOfferSlot}
+              handleRequestSwap={handleRequestSwap}
+              scheduleLoading={scheduleLoading}
+              showAll={showAll}
+              showPast={showPast}
+              setShowAll={setShowAll}
+              setShowPast={setShowPast}
+              loggedInUser={loggedInUser}
+            />
           </TabsContent>
           <TabsContent value="available" className="space-y-4">
-            {loggedInUser ? (
-              <>
-                <div className="flex justify-end mb-4 gap-2">
-                  <Button
-                    size="sm"
-                    variant={showInactiveSlots ? "default" : "outline"}
-                    onClick={() => setShowInactiveSlots((v) => !v)}
-                  >
-                    {showInactiveSlots ? "Hide Inactive Offers" : "Show Inactive Offers"}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={showOnlyMine ? "default" : "outline"}
-                    onClick={() => setShowOnlyMine((v) => !v)}
-                  >
-                    {showOnlyMine ? "Show All Offers" : "Show Only Mine"}
-                  </Button>
-                </div>
-                {slotsLoading ? (
-                  <div className="text-center text-gray-500 py-10">Loading available slots...</div>
-                ) : (
-                  (() => {
-                    const filteredSlots = showInactiveSlots
-                      ? allSlots
-                      : availableSlots;
-                    const mineFilteredSlots = showOnlyMine && playerName
-                      ? filteredSlots.filter((slot: any) => slot.Player === playerName)
-                      : filteredSlots;
-                    // Before rendering filteredSlots in the Available Slots tab, sort and deduplicate:
-                    const dedupedSortedSlots = (() => {
-                      // Remove duplicate offers for the same session from the same user (keep most recent by Timestamp if available)
-                      const seen = new Map();
-                      mineFilteredSlots.forEach((slot: any) => {
-                        const key = `${slot.Date}__${slot.Time}__${slot.Player}`;
-                        // If not seen or this one is newer, keep it
-                        if (!seen.has(key) || (slot.Timestamp && seen.get(key).Timestamp < slot.Timestamp)) {
-                          seen.set(key, slot);
-                        }
-                      });
-                      // Sort by date and time
-                      const slotsArr = Array.from(seen.values());
-                      slotsArr.sort((a, b) => {
-                        // Parse date as YYYY-MM-DD for comparison
-                        const [dayA, monthA] = a.Date.split('.').map(Number);
-                        const [dayB, monthB] = b.Date.split('.').map(Number);
-                        const dateA = new Date(new Date().getFullYear(), monthA - 1, dayA);
-                        const dateB = new Date(new Date().getFullYear(), monthB - 1, dayB);
-                        if (dateA.getTime() !== dateB.getTime()) return dateA.getTime() - dateB.getTime();
-                        // If same date, compare time (HH:MM)
-                        const timeA = a.Time.split(':').map(Number);
-                        const timeB = b.Time.split(':').map(Number);
-                        return timeA[0] - timeB[0] || timeA[1] - timeB[1];
-                      });
-                      return slotsArr;
-                    })();
-                    return (
-                      <div className="space-y-3">
-                        {dedupedSortedSlots.length === 0 ? (
-                          <div className="text-center text-gray-500">No available slots.</div>
-                        ) : (
-                          dedupedSortedSlots.map((slot: any, idx: number) => {
-                            // Find the corresponding session in the schedule
-                            let isUserInSession = false;
-                            if (playerName) {
-                              for (const game of schedule) {
-                                if (normalizeDate(game.date) === normalizeDate(slot.Date)) {
-                                  for (const session of game.sessions) {
-                                    if (session.time.trim() === slot.Time.trim()) {
-                                      if (session.players.some((p: string) => p.toLowerCase() === playerName.toLowerCase())) {
-                                        isUserInSession = true;
-                                      }
-                                    }
-                                  }
-                                }
-                              }
-                            }
-                            const isOwner = !!(playerName && slot.Player === playerName);
-                            const isInactive = slot.Status !== 'offered';
-                            // Accept swap eligibility logic
-                            const acceptSwapEligible = slot.SwapRequested === 'yes' && slot.Status === 'offered' && (() => {
-                              if (!playerName) return false;
-                              for (const game of schedule) {
-                                if (game.date === slot.RequestedDate) {
-                                  for (const session of game.sessions) {
-                                    if (session.time === slot.RequestedTime) {
-                                      return session.players.some((p: string) => p.toLowerCase() === playerName.toLowerCase());
-                                    }
-                                  }
-                                }
-                              }
-                              return false;
-                            })();
-                            return (
-                              <SlotCard
-                                key={idx}
-                                slot={slot}
-                                idx={idx}
-                                userMapping={userMapping}
-                                slotActionLoading={slotActionLoading}
-                                acceptSwapLoading={acceptSwapLoading}
-                                handleRecallSlot={handleRecallSlot}
-                                handleAcceptSwap={handleAcceptSwap}
-                                handleOfferSlot={handleOfferSlot}
-                                handleRequestSwap={handleRequestSwap}
-                                isOwner={isOwner}
-                                isInactive={isInactive}
-                                isUserInSession={isUserInSession}
-                                getPlayerColor={getPlayerColor}
-                                acceptSwapEligible={acceptSwapEligible}
-                                onClaimClick={handleClaimClick}
-                              />
-                            );
-                          })
-                        )}
-                      </div>
-                    );
-                  })()
-                )}
-              </>
-            ) : (
-              <div className="text-center text-gray-500 py-10">
-                Please log in to view available slots.
-                <div className="mt-4">
-                  <Button size="sm" variant="default" onClick={() => signIn("google")}>Login with Google</Button>
-                </div>
-              </div>
-            )}
+            <AvailableSlotsTab
+              allSlots={allSlots}
+              availableSlots={availableSlots}
+              playerName={playerName}
+              schedule={schedule}
+              userMapping={userMapping}
+              slotActionLoading={slotActionLoading}
+              acceptSwapLoading={acceptSwapLoading}
+              handleRecallSlot={handleRecallSlot}
+              handleAcceptSwap={handleAcceptSwap}
+              handleOfferSlot={handleOfferSlot}
+              handleRequestSwap={handleRequestSwap}
+              showInactiveSlots={showInactiveSlots}
+              setShowInactiveSlots={setShowInactiveSlots}
+              showOnlyMine={showOnlyMine}
+              setShowOnlyMine={setShowOnlyMine}
+              slotsLoading={slotsLoading}
+              getPlayerColor={getPlayerColor}
+              isEligibleForSwap={isEligibleForSwap}
+              onClaimClick={handleClaimClick}
+              loggedInUser={loggedInUser}
+            />
           </TabsContent>
         </Tabs>
       </div>

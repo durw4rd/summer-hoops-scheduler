@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useMemo } from "react";
+import { getDayOfWeek } from "@/lib/utils";
 
 interface SlotCardProps {
   slot: any;
@@ -20,12 +21,6 @@ interface SlotCardProps {
   getPlayerColor: (name: string) => string;
   acceptSwapEligible: boolean;
   onClaimClick: (slot: any, claimSessionId: string) => void;
-}
-
-function getDayOfWeek(dateStr: string) {
-  const [day, month] = dateStr.split('.').map(Number);
-  const date = new Date(new Date().getFullYear(), month - 1, day);
-  return date.toLocaleDateString(undefined, { weekday: 'short' });
 }
 
 export default function SlotCard({
