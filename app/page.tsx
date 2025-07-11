@@ -567,13 +567,13 @@ export default function SummerHoopsScheduler() {
             {loggedInUser ? (
               <>
                 <div className="flex justify-end mb-4">
-                                <Button
+                  <Button
                     size="sm"
                     variant={showInactiveSlots ? "default" : "outline"}
                     onClick={() => setShowInactiveSlots((v) => !v)}
                   >
                     {showInactiveSlots ? "Hide Inactive Offers" : "Show Inactive Offers"}
-                                </Button>
+                  </Button>
                 </div>
                 {slotsLoading ? (
                   <div className="text-center text-gray-500 py-10">Loading available slots...</div>
@@ -605,116 +605,142 @@ export default function SummerHoopsScheduler() {
                         // If same date, compare time (HH:MM)
                         const timeA = a.Time.split(':').map(Number);
                         const timeB = b.Time.split(':').map(Number);
-                        if (timeA[0] !== timeB[0]) return timeA[0] - timeB[0];
-                        return (timeA[1] || 0) - (timeB[1] || 0);
+                        return timeA[0] - timeB[0] || timeA[1] - timeB[1];
                       });
                       return slotsArr;
                     })();
-                    if (dedupedSortedSlots.length === 0) {
-                      return <div className="text-center text-gray-500">No slots currently up for grabs.</div>;
-                    }
-                    return dedupedSortedSlots.map((slot: any, idx: number) => {
-                      const isOwner = playerName && slot.Player === playerName;
-                      const isInactive = slot.Status !== 'offered';
-                      return (
-                        <Card key={idx} className={`border-l-4 ${slot.Status === 'offered' ? 'border-l-yellow-400' : slot.Status === 'claimed' ? 'border-l-green-400' : 'border-l-gray-400'}`}>
-                          <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                            <CardTitle className="text-md flex items-center gap-2">
-                              <span>{slot.Date}</span>
-                              <span className="text-gray-400">({getDayOfWeek(slot.Date)})</span>
-                              <span className="text-gray-400">/</span>
-                              <span>{slot.Time}</span>
-                            </CardTitle>
-                            {isOwner && slot.Status === 'offered' && (
-                              <Badge className="bg-yellow-200 text-yellow-900">Your Slot</Badge>
-                            )}
-                            {slot.Status === 'claimed' && (
-                              <Badge className="bg-green-200 text-green-900">Claimed</Badge>
-                            )}
-                            {slot.Status === 'retracted' && (
-                              <Badge className="bg-gray-200 text-gray-900">Retracted</Badge>
-                            )}
-                          </CardHeader>
-                          <CardContent className="flex flex-col gap-2">
-                            <div className="flex items-center gap-2">
-                              <Avatar className="w-6 h-6">
-                                <AvatarImage src={"/summerHoopsLogo.png"} />
-                                <AvatarFallback className="text-xs">
-                                  {slot.Player.split(" ").map((n: string) => n[0]).join("")}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span className="text-sm font-medium">
-                                {isOwner ? "You" : slot.Player.split(" ")[0]}
-                              </span>
-                            </div>
-                            {slot.SwapRequested === 'yes' ? (
-                              <div className="flex flex-col gap-1 mb-2">
-                                <Badge className="bg-blue-200 text-blue-900">Swap Offer</Badge>
-                                <div className="text-xs text-blue-900">
-                                  Wants to swap for: <b>{slot.RequestedDate} / {slot.RequestedTime}</b>
-                                </div>
-                              </div>
-                            ) : (
-                              <Badge className="bg-yellow-200 text-yellow-900 mb-2">Up For Grabs</Badge>
-                            )}
-                            {isOwner && slot.Status !== 'offered' && slot.SwapRequested !== 'yes' && (
-                              <div className="flex gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleOfferSlot(slot.Date, slot.Time, slot.Player, `available-${idx}`)}
-                                >
-                                  Offer for Grabs
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="secondary"
-                                  onClick={() => handleRequestSwap(slot)}
-                                >
-                                  Offer for Swap
-                                </Button>
-                        </div>
-                      )}
-                            {isOwner && slot.Status === 'offered' && (
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                disabled={slotActionLoading === `available-${idx}`}
-                                onClick={() => handleRecallSlot(slot.Date, slot.Time, slot.Player, `recall-${idx}`)}
-                              >
-                                {slotActionLoading === `recall-${idx}` ? "Recalling..." : "Recall Slot"}
-                              </Button>
-                            )}
-                            {slot.Status === 'claimed' && slot.ClaimedBy && (
-                              <div className="text-xs text-green-700 mt-1">
-                                Claimed by: <span className="font-semibold">{slot.ClaimedBy}</span>
-                    </div>
-                            )}
-                            {/* For swap requests, show Accept Swap button if user is eligible */}
-                            {slot.SwapRequested === 'yes' && slot.Status === 'offered' && isEligibleForSwap(slot) && (
-                              <Button
-                                size="sm"
-                                variant="default"
-                                disabled={acceptSwapLoading === `${slot.Date}-${slot.Time}-${slot.Player}`}
-                                onClick={() => handleAcceptSwap(slot)}
-                              >
-                                {acceptSwapLoading === `${slot.Date}-${slot.Time}-${slot.Player}` ? 'Accepting...' : 'Accept swap'}
-                              </Button>
-                            )}
-                            {!isOwner && slot.Status === 'offered' && slot.SwapRequested !== 'yes' && (
-                              <Button
-                                size="sm"
-                                variant="default"
-                                disabled={slotActionLoading === `available-${idx}`}
-                                onClick={() => handleClaimSlot(slot.Date, slot.Time, slot.Player, playerName!, `available-${idx}`)}
-                              >
-                                {slotActionLoading === `available-${idx}` ? "Claiming..." : `Claim ${slot.Player.split(' ')[0]}'s Slot`}
-                              </Button>
-                            )}
-                </CardContent>
-              </Card>
-                      );
-                    });
+                    return (
+                      <div className="space-y-3">
+                        {dedupedSortedSlots.length === 0 ? (
+                          <div className="text-center text-gray-500">No available slots.</div>
+                        ) : (
+                          dedupedSortedSlots.map((slot: any, idx: number) => {
+                            // Find the corresponding session in the schedule
+                            let isUserInSession = false;
+                            if (playerName) {
+                              for (const game of schedule) {
+                                if (normalizeDate(game.date) === normalizeDate(slot.Date)) {
+                                  for (const session of game.sessions) {
+                                    if (session.time.trim() === slot.Time.trim()) {
+                                      if (session.players.some((p: string) => p.toLowerCase() === playerName.toLowerCase())) {
+                                        isUserInSession = true;
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                            const isOwner = playerName && slot.Player === playerName;
+                            const isInactive = slot.Status !== 'offered';
+                            return (
+                              <Card key={idx} className={`border-l-4 ${slot.Status === 'offered' ? 'border-l-yellow-400' : slot.Status === 'claimed' ? 'border-l-green-400' : 'border-l-gray-400'}`}>
+                                <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                                  <CardTitle className="text-md flex items-center gap-2">
+                                    <span>{slot.Date}</span>
+                                    <span className="text-gray-400">({getDayOfWeek(slot.Date)})</span>
+                                    <span className="text-gray-400">/</span>
+                                    <span>{slot.Time}</span>
+                                  </CardTitle>
+                                  <div className="flex gap-2">
+                                    {isOwner && slot.Status === 'offered' && (
+                                      <Badge className="bg-yellow-200 text-yellow-900">Your Slot</Badge>
+                                    )}
+                                    {slot.Status === 'claimed' && (
+                                      <Badge className="bg-green-200 text-green-900">Claimed</Badge>
+                                    )}
+                                    {slot.Status === 'retracted' && (
+                                      <Badge className="bg-gray-200 text-gray-900">Retracted</Badge>
+                                    )}
+                                    {/* Only show 'Already in!' badge if user is in the session and it's not their own offer */}
+                                    {!isOwner && isUserInSession && (
+                                      <Badge className="bg-orange-500 text-white">Already in!</Badge>
+                                    )}
+                                  </div>
+                                </CardHeader>
+                                <CardContent className="flex flex-col gap-2">
+                                  <div className="flex items-center gap-2">
+                                    <Avatar className="w-6 h-6">
+                                      <AvatarImage src={"/summerHoopsLogo.png"} />
+                                      <AvatarFallback className="text-xs">
+                                        {slot.Player.split(" ").map((n: string) => n[0]).join("")}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <span className="text-sm font-medium">
+                                      {isOwner ? "You" : slot.Player.split(" ")[0]}
+                                    </span>
+                                  </div>
+                                  {slot.SwapRequested === 'yes' ? (
+                                    <div className="flex flex-col gap-1 mb-2">
+                                      <Badge className="bg-blue-200 text-blue-900">Swap Offer</Badge>
+                                      <div className="text-xs text-blue-900">
+                                        Wants to swap for: <b>{slot.RequestedDate} / {slot.RequestedTime}</b>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <Badge className="bg-yellow-200 text-yellow-900 mb-2">Up For Grabs</Badge>
+                                  )}
+                                  {isOwner && slot.Status !== 'offered' && slot.SwapRequested !== 'yes' && (
+                                    <div className="flex gap-2">
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleOfferSlot(slot.Date, slot.Time, slot.Player, `available-${idx}`)}
+                                      >
+                                        Offer for Grabs
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="secondary"
+                                        onClick={() => handleRequestSwap(slot)}
+                                      >
+                                        Offer for Swap
+                                      </Button>
+                                    </div>
+                                  )}
+                                  {isOwner && slot.Status === 'offered' && (
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      disabled={slotActionLoading === `available-${idx}`}
+                                      onClick={() => handleRecallSlot(slot.Date, slot.Time, slot.Player, `recall-${idx}`)}
+                                    >
+                                      {slotActionLoading === `recall-${idx}` ? "Recalling..." : "Recall Slot"}
+                                    </Button>
+                                  )}
+                                  {slot.Status === 'claimed' && slot.ClaimedBy && (
+                                    <div className="text-xs text-green-700 mt-1">
+                                      Claimed by: <span className="font-semibold">{slot.ClaimedBy}</span>
+                                    </div>
+                                  )}
+                                  {/* For swap requests, show Accept Swap button if user is eligible */}
+                                  {slot.SwapRequested === 'yes' && slot.Status === 'offered' && isEligibleForSwap(slot) && (
+                                    <Button
+                                      size="sm"
+                                      variant="default"
+                                      disabled={acceptSwapLoading === `${slot.Date}-${slot.Time}-${slot.Player}`}
+                                      onClick={() => handleAcceptSwap(slot)}
+                                    >
+                                      {acceptSwapLoading === `${slot.Date}-${slot.Time}-${slot.Player}` ? 'Accepting...' : 'Accept swap'}
+                                    </Button>
+                                  )}
+                                  {/* Claim button for non-owners, only if not already playing and not a swap offer */}
+                                  {!isOwner && slot.Status === 'offered' && slot.SwapRequested !== 'yes' && !isUserInSession && (
+                                    <Button
+                                      size="sm"
+                                      variant="default"
+                                      disabled={slotActionLoading === `available-${idx}`}
+                                      onClick={() => handleClaimSlot(slot.Date, slot.Time, slot.Player, playerName!, `available-${idx}`)}
+                                    >
+                                      {slotActionLoading === `available-${idx}` ? "Claiming..." : `Claim ${slot.Player.split(' ')[0]}'s Slot`}
+                                    </Button>
+                                  )}
+                                </CardContent>
+                              </Card>
+                            );
+                          })
+                        )}
+                      </div>
+                    );
                   })()
                 )}
               </>
