@@ -147,12 +147,20 @@ export default function SummerHoopsScheduler() {
   }
 
   // Helper to check if a slot is up for grabs for a session
+  function normalizeDate(date: string) {
+    // Accepts '4.08' or '04.08', returns '04.08'
+    if (!date) return '';
+    const [d, m] = date.split('.').map(Number);
+    if (isNaN(d) || isNaN(m)) return date.trim();
+    return `${d.toString().padStart(2, '0')}.${m.toString().padStart(2, '0')}`;
+  }
   function getSlotForSession(date: string, time: string, player: string) {
+    const normalize = (v: string) => v.trim().toLowerCase();
     return availableSlots.find(
       (slot) =>
-        slot.Date === date &&
-        slot.Time === time &&
-        slot.Player === player &&
+        normalizeDate(slot.Date) === normalizeDate(date) &&
+        normalize(slot.Time) === normalize(time) &&
+        normalize(slot.Player) === normalize(player) &&
         slot.Status === "offered"
     );
   }
@@ -166,13 +174,8 @@ export default function SummerHoopsScheduler() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ date, time, player }),
       });
-      // Refresh available slots
-      const res = await fetch("/api/slots");
-      const json = await res.json();
-      if (json.slots) {
-        setAvailableSlots(json.slots.filter((slot: any) => slot.Status === 'offered'));
-        setAllSlots(json.slots);
-      }
+      // Refresh available slots and schedule
+      await Promise.all([fetchAvailableSlots(), fetchSchedule()]);
     } finally {
       setSlotActionLoading(null);
     }
