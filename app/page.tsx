@@ -487,7 +487,7 @@ export default function SummerHoopsScheduler() {
                                           >
                                             <Avatar className="w-4 h-4">
                                               <AvatarImage
-                                                src={`/profile-${playerId.replace(/\s+/g, "")}.png`}
+                                                src={`/profile-${playerId.replace(/\s+/g, "").toLowerCase()}.png`}
                                                 onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/summerHoopsLogo.png"; }}
                                               />
                                               <AvatarFallback className="text-xs">
@@ -664,7 +664,7 @@ export default function SummerHoopsScheduler() {
                                   <div className="flex items-center gap-2">
                                     <Avatar className="w-6 h-6">
                                       <AvatarImage
-                                        src={`/profile-${slot.Player.replace(/\s+/g, "")}.png`}
+                                        src={`/profile-${slot.Player.replace(/\s+/g, "").toLowerCase()}.png`}
                                         onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/summerHoopsLogo.png"; }}
                                       />
                                       <AvatarFallback className="text-xs">
