@@ -42,6 +42,8 @@ export default function SummerHoopsScheduler() {
   const [swapLoading, setSwapLoading] = useState(false);
   const [condensedMode, setCondensedMode] = useState(false);
   const [showOnlyMine, setShowOnlyMine] = useState(false);
+  const [claimConfirmOpen, setClaimConfirmOpen] = useState(false);
+  const [pendingClaimSlot, setPendingClaimSlot] = useState<any | null>(null);
 
   // 2. Find the logged-in user's player name using their email
   const loggedInUser = session?.user;
@@ -521,33 +523,45 @@ export default function SummerHoopsScheduler() {
                                   </div>
                                   {(!condensedMode && session.players.length > 0) && (
                                     <div className="mt-3 flex flex-wrap gap-1">
-                                      {session.players.map((playerId: string) => {
-                                        const playerColor = userMapping[playerId]?.color;
-                                        const isCurrentUser = playerName && playerId.toLowerCase() === playerName.toLowerCase();
-                                        return (
-                                          <div
-                                            key={playerId}
-                                            className={`flex items-center space-x-1 bg-white rounded-full px-2 py-1 text-xs ${isCurrentUser ? "font-bold text-orange-600" : ""}`}
-                                            style={playerColor ? { backgroundColor: playerColor, color: '#fff' } : {}}
-                                          >
-                                            <Avatar className="w-4 h-4">
-                                              <AvatarImage
-                                                src={`/profile-${playerId.replace(/\s+/g, "").toLowerCase()}.png`}
-                                                onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/summerHoopsLogo.png"; }}
-                                              />
-                                              <AvatarFallback className="text-xs">
-                                                {playerId
-                                                  .split(" ")
-                                                  .map((n: string) => n[0])
-                                                  .join("")}
-                                              </AvatarFallback>
-                                            </Avatar>
-                                            <span>
-                                              {isCurrentUser ? "You" : playerId.split(" ")[0]}
-                                            </span>
-                                          </div>
-                                        );
-                                      })}
+                                      {/* Group and count players to avoid duplicate keys and show +N for multiples */}
+                                      {(() => {
+                                        const playerCounts: Record<string, number> = {};
+                                        session.players.forEach((p: string) => {
+                                          playerCounts[p] = (playerCounts[p] || 0) + 1;
+                                        });
+                                        const uniquePlayers = Object.keys(playerCounts);
+                                        return uniquePlayers.map((playerId, idx) => {
+                                          const playerColor = userMapping[playerId]?.color;
+                                          const isCurrentUser = playerName && playerId.toLowerCase() === playerName.toLowerCase();
+                                          const count = playerCounts[playerId];
+                                          return (
+                                            <div
+                                              key={playerId + '-' + idx}
+                                              className={`flex items-center space-x-1 bg-white rounded-full px-2 py-1 text-xs ${isCurrentUser ? "font-bold text-orange-600" : ""}`}
+                                              style={playerColor ? { backgroundColor: playerColor, color: '#fff' } : {}}
+                                            >
+                                              <Avatar className="w-4 h-4">
+                                                <AvatarImage
+                                                  src={`/profile-${playerId.replace(/\s+/g, "").toLowerCase()}.png`}
+                                                  onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/summerHoopsLogo.png"; }}
+                                                />
+                                                <AvatarFallback className="text-xs">
+                                                  {playerId
+                                                    .split(" ")
+                                                    .map((n: string) => n[0])
+                                                    .join("")}
+                                                </AvatarFallback>
+                                              </Avatar>
+                                              <span>
+                                                {isCurrentUser ? "You" : playerId.split(" ")[0]}
+                                                {count > 1 && (
+                                                  <span className="ml-1 text-xs font-semibold">+{count - 1}</span>
+                                                )}
+                                              </span>
+                                            </div>
+                                          );
+                                        });
+                                      })()}
                                     </div>
                                   )}
                                   {/* Slot for grabs actions */}
@@ -796,12 +810,32 @@ export default function SummerHoopsScheduler() {
                                     </Button>
                                   )}
                                   {/* Claim button for non-owners, only if not already playing and not a swap offer */}
-                                  {!isOwner && slot.Status === 'offered' && slot.SwapRequested !== 'yes' && !isUserInSession && (
+                                  {!isOwner && slot.Status === 'offered' && slot.SwapRequested !== 'yes' && (
                                     <Button
                                       size="sm"
                                       variant="default"
                                       disabled={slotActionLoading === `available-${idx}`}
-                                      onClick={() => handleClaimSlot(slot.Date, slot.Time, slot.Player, playerName!, `available-${idx}`)}
+                                      onClick={() => {
+                                        // Check if user is already in the session for this slot
+                                        let alreadyInSession = false;
+                                        for (const game of schedule) {
+                                          if (normalizeDate(game.date) === normalizeDate(slot.Date)) {
+                                            for (const session of game.sessions) {
+                                              if (session.time.trim() === slot.Time.trim()) {
+                                                if (session.players.some((p: string) => p.toLowerCase() === playerName?.toLowerCase())) {
+                                                  alreadyInSession = true;
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                        if (alreadyInSession) {
+                                          setPendingClaimSlot({ ...slot, claimSessionId: `available-${idx}` });
+                                          setClaimConfirmOpen(true);
+                                        } else {
+                                          handleClaimSlot(slot.Date, slot.Time, slot.Player, playerName!, `available-${idx}`);
+                                        }
+                                      }}
                                     >
                                       {slotActionLoading === `available-${idx}` ? "Claiming..." : `Claim ${slot.Player.split(' ')[0]}'s Slot`}
                                     </Button>
@@ -873,6 +907,39 @@ export default function SummerHoopsScheduler() {
               <Button variant="outline">Cancel</Button>
             </DialogClose>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Claim Confirmation Modal */}
+      <Dialog open={claimConfirmOpen} onOpenChange={setClaimConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Claim Additional Spot?</DialogTitle>
+            <DialogDescription>
+              You are already attending this session. Are you sure you want to claim an additional spot?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => { setClaimConfirmOpen(false); setPendingClaimSlot(null); }}>Cancel</Button>
+            <Button
+              variant="default"
+              onClick={() => {
+                if (pendingClaimSlot) {
+                  handleClaimSlot(
+                    pendingClaimSlot.Date,
+                    pendingClaimSlot.Time,
+                    pendingClaimSlot.Player,
+                    playerName!,
+                    pendingClaimSlot.claimSessionId
+                  );
+                }
+                setClaimConfirmOpen(false);
+                setPendingClaimSlot(null);
+              }}
+            >
+              Yes, claim anyway
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
