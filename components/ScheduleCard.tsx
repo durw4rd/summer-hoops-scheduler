@@ -161,13 +161,14 @@ export default function ScheduleCard({
                 ) : null
               )}
               {/* Slot for grabs actions */}
-              <div className="mt-3 flex flex-row gap-1 overflow-x-auto whitespace-nowrap min-w-0">
+              <div className="mt-3 flex flex-row w-full gap-x-1">
                 {/* Offer slot button for the logged-in user */}
                 {isUserParticipant && !userSlot && (
                   <>
                     <Button
                       size="sm"
                       variant="outline"
+                      className="flex-1 min-w-0 whitespace-normal h-auto"
                       disabled={slotActionLoading === sessionId}
                       onClick={() => handleOfferSlot(game.date, session.time, playerName!, sessionId)}
                     >
@@ -176,6 +177,7 @@ export default function ScheduleCard({
                     <Button
                       size="sm"
                       variant="outline"
+                      className="flex-1 min-w-0 whitespace-normal h-auto"
                       onClick={() => handleRequestSwap({ Date: game.date, Time: session.time })}
                     >
                       Offer for swap
@@ -184,6 +186,7 @@ export default function ScheduleCard({
                       <Button
                         size="sm"
                         variant="outline"
+                        className="flex-1 min-w-0 whitespace-normal h-auto"
                         onClick={() => onReassignClick({ date: game.date, time: session.time, currentPlayer: playerName! })}
                       >
                         Reassign
