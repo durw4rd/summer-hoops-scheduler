@@ -147,10 +147,7 @@ const AvailableSlotsTab: React.FC<AvailableSlotsTabProps> = ({
         </>
       ) : (
         <div className="text-center text-gray-500 py-10">
-          Please log in to view available slots.
-          <div className="mt-4">
-            <Button size="sm" variant="default" onClick={() => window.location.reload()}>Login with Google</Button>
-          </div>
+          You need to log in to use the app.
         </div>
       )}
     </>

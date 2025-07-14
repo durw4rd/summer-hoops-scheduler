@@ -91,10 +91,7 @@ const ScheduleTab: React.FC<ScheduleTabProps> = ({
         </>
       ) : (
         <div className="text-center text-gray-500 py-10">
-          Please log in to view your schedule.
-          <div className="mt-4">
-            <Button size="sm" variant="default" onClick={() => window.location.reload()}>Login with Google</Button>
-          </div>
+          You need to log in to use the app.
         </div>
       )}
     </>

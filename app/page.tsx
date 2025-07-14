@@ -9,6 +9,7 @@ import SwapModal from "@/components/SwapModal";
 import ClaimConfirmationModal from "@/components/ClaimConfirmationModal";
 import ScheduleTab from "@/components/ScheduleTab";
 import AvailableSlotsTab from "@/components/AvailableSlotsTab";
+import RegisterPrompt from "@/components/RegisterPrompt";
 
 export default function SummerHoopsScheduler() {
   const { data: session } = useSession();
@@ -33,6 +34,7 @@ export default function SummerHoopsScheduler() {
   const [showOnlyMine, setShowOnlyMine] = useState(false);
   const [claimConfirmOpen, setClaimConfirmOpen] = useState(false);
   const [pendingClaimSlot, setPendingClaimSlot] = useState<any | null>(null);
+  const [userMappingLoading, setUserMappingLoading] = useState(true);
 
   // 2. Find the logged-in user's player name using their email
   const loggedInUser = session?.user;
@@ -42,6 +44,8 @@ export default function SummerHoopsScheduler() {
       name => userMapping[name].email.toLowerCase() === loggedInUser.email!.toLowerCase()
     );
   }
+
+  const isRegistered = !!playerName;
 
   // Helper to determine if a session is in the future
   function isSessionUpcoming(date: string, time: string) {
@@ -91,6 +95,7 @@ export default function SummerHoopsScheduler() {
   async function fetchSchedule() {
     try {
       setScheduleLoading(true);
+      setUserMappingLoading(true);
       const res = await fetch("/api/schedule");
       const json = await res.json();
       if (json.data) {
@@ -103,6 +108,7 @@ export default function SummerHoopsScheduler() {
       // Optionally handle error
     } finally {
       setScheduleLoading(false);
+      setUserMappingLoading(false);
     }
   }
 
@@ -354,10 +360,10 @@ export default function SummerHoopsScheduler() {
     "Fran": "#AED581",
     "Romario": "#FFEB3B",
     "Varun": "#F9A825",
-    "testMicha": "#C62828",
     "Sam": "#8D6E63",
     "Daryl": "#FFD54F",
-    "Ricardo": "#43A047"
+    "Ricardo": "#43A047",
+    "testMicha": "#C62828"
   };
 
   function getPlayerColor(name: string) {
@@ -388,68 +394,88 @@ export default function SummerHoopsScheduler() {
     }
   }
 
+  async function handleRegister(name: string) {
+    if (!loggedInUser?.email) throw new Error("No email found");
+    const res = await fetch("/api/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, email: loggedInUser.email }),
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || "Registration failed");
+    // Refresh user mapping
+    await fetchSchedule();
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50">
       <Header session={session} onSignIn={() => signIn("google") } onSignOut={signOut} />
 
       {/* 7. Show the chosen schedule */}
       <div className="max-w-md mx-auto px-4 py-6">
-        <Tabs defaultValue="schedule" className="w-full" onValueChange={handleTabChange}>
-          <TabsList className="grid w-full grid-cols-2 mb-6">
-            <TabsTrigger value="schedule" className="flex items-center space-x-2">
-              <Calendar className="w-4 h-4" />
-              <span>Schedule</span>
-            </TabsTrigger>
-            <TabsTrigger value="available" className="flex items-center space-x-2">
-              <Gift className="w-4 h-4" />
-              <span>Available Slots</span>
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="schedule" className="space-y-4">
-            <ScheduleTab
-              scheduleToDisplay={scheduleToDisplay}
-              userMapping={userMapping}
-              playerName={playerName}
-              allSlots={allSlots}
-              condensedMode={condensedMode}
-              setCondensedMode={setCondensedMode}
-              slotActionLoading={slotActionLoading}
-              handleOfferSlot={handleOfferSlot}
-              handleRequestSwap={handleRequestSwap}
-              scheduleLoading={scheduleLoading}
-              showAll={showAll}
-              showPast={showPast}
-              setShowAll={setShowAll}
-              setShowPast={setShowPast}
-              loggedInUser={loggedInUser}
-            />
-          </TabsContent>
-          <TabsContent value="available" className="space-y-4">
-            <AvailableSlotsTab
-              allSlots={allSlots}
-              availableSlots={availableSlots}
-              playerName={playerName}
-              schedule={schedule}
-              userMapping={userMapping}
-              slotActionLoading={slotActionLoading}
-              acceptSwapLoading={acceptSwapLoading}
-              handleRecallSlot={handleRecallSlot}
-              handleAcceptSwap={handleAcceptSwap}
-              handleOfferSlot={handleOfferSlot}
-              handleRequestSwap={handleRequestSwap}
-              showInactiveSlots={showInactiveSlots}
-              setShowInactiveSlots={setShowInactiveSlots}
-              showOnlyMine={showOnlyMine}
-              setShowOnlyMine={setShowOnlyMine}
-              slotsLoading={slotsLoading}
-              getPlayerColor={getPlayerColor}
-              isEligibleForSwap={isEligibleForSwap}
-              onClaimClick={handleClaimClick}
-              loggedInUser={loggedInUser}
-            />
-          </TabsContent>
-        </Tabs>
+        {userMappingLoading ? (
+          <div className="text-center text-gray-500 py-10">Loading...</div>
+        ) : !loggedInUser ? (
+          <div className="text-center text-gray-500 py-10">You need to log in to use the app.</div>
+        ) : !isRegistered ? (
+          <RegisterPrompt email={loggedInUser.email || ""} onRegister={handleRegister} />
+        ) : (
+          <Tabs defaultValue="schedule" className="w-full" onValueChange={handleTabChange}>
+            <TabsList className="grid w-full grid-cols-2 mb-6">
+              <TabsTrigger value="schedule" className="flex items-center space-x-2">
+                <Calendar className="w-4 h-4" />
+                <span>Schedule</span>
+              </TabsTrigger>
+              <TabsTrigger value="available" className="flex items-center space-x-2">
+                <Gift className="w-4 h-4" />
+                <span>Available Slots</span>
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="schedule" className="space-y-4">
+              <ScheduleTab
+                scheduleToDisplay={scheduleToDisplay}
+                userMapping={userMapping}
+                playerName={playerName}
+                allSlots={allSlots}
+                condensedMode={condensedMode}
+                setCondensedMode={setCondensedMode}
+                slotActionLoading={slotActionLoading}
+                handleOfferSlot={handleOfferSlot}
+                handleRequestSwap={handleRequestSwap}
+                scheduleLoading={scheduleLoading}
+                showAll={showAll}
+                showPast={showPast}
+                setShowAll={setShowAll}
+                setShowPast={setShowPast}
+                loggedInUser={loggedInUser}
+              />
+            </TabsContent>
+            <TabsContent value="available" className="space-y-4">
+              <AvailableSlotsTab
+                allSlots={allSlots}
+                availableSlots={availableSlots}
+                playerName={playerName}
+                schedule={schedule}
+                userMapping={userMapping}
+                slotActionLoading={slotActionLoading}
+                acceptSwapLoading={acceptSwapLoading}
+                handleRecallSlot={handleRecallSlot}
+                handleAcceptSwap={handleAcceptSwap}
+                handleOfferSlot={handleOfferSlot}
+                handleRequestSwap={handleRequestSwap}
+                showInactiveSlots={showInactiveSlots}
+                setShowInactiveSlots={setShowInactiveSlots}
+                showOnlyMine={showOnlyMine}
+                setShowOnlyMine={setShowOnlyMine}
+                slotsLoading={slotsLoading}
+                getPlayerColor={getPlayerColor}
+                isEligibleForSwap={isEligibleForSwap}
+                onClaimClick={handleClaimClick}
+                loggedInUser={loggedInUser}
+              />
+            </TabsContent>
+          </Tabs>
+        )}
       </div>
 
       {/* Swap Modal */}
