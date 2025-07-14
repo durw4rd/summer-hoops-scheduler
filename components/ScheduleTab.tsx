@@ -1,7 +1,8 @@
 import { Button } from "@/components/ui/button";
 import ScheduleCard from "@/components/ScheduleCard";
 import { Switch } from "@/components/ui/switch";
-import React from "react";
+import React, { useState } from "react";
+import ReassignSlotModal from "@/components/ReassignSlotModal";
 
 interface ScheduleTabProps {
   scheduleToDisplay: any[];
@@ -38,6 +39,76 @@ const ScheduleTab: React.FC<ScheduleTabProps> = ({
   setShowPast,
   loggedInUser,
 }) => {
+  const [reassignModalOpen, setReassignModalOpen] = useState(false);
+  const [reassignSession, setReassignSession] = useState<{ date: string; time: string; currentPlayer: string } | null>(null);
+  const [reassignLoading, setReassignLoading] = useState(false);
+  const [reassignError, setReassignError] = useState<string | null>(null);
+  const [reassignSelectedPlayer, setReassignSelectedPlayer] = useState<string>("");
+  const [reassignConfirm, setReassignConfirm] = useState(false);
+  const [reassignWarn, setReassignWarn] = useState(false);
+
+  function handleReassignClick(sessionInfo: { date: string; time: string; currentPlayer: string }) {
+    setReassignSession(sessionInfo);
+    setReassignModalOpen(true);
+    setReassignSelectedPlayer("");
+    setReassignConfirm(false);
+    setReassignWarn(false);
+    setReassignError(null);
+  }
+
+  // Helper to check if a player is already in the session
+  function isPlayerInSession(date: string, time: string, player: string) {
+    for (const game of scheduleToDisplay) {
+      if (game.date === date) {
+        for (const session of game.sessions) {
+          if (session.time === time) {
+            return session.players.some((p: string) => p.toLowerCase() === player.toLowerCase());
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  async function handleReassign(newPlayer: string) {
+    if (!reassignSession) return;
+    setReassignError(null);
+    setReassignSelectedPlayer(newPlayer);
+    // Check if player is already in session
+    const alreadyInSession = isPlayerInSession(reassignSession.date, reassignSession.time, newPlayer);
+    if (alreadyInSession && !reassignConfirm) {
+      setReassignWarn(true);
+      setReassignConfirm(true);
+      return;
+    }
+    setReassignLoading(true);
+    try {
+      const res = await fetch("/api/schedule/reassign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          date: reassignSession.date,
+          time: reassignSession.time,
+          fromPlayer: reassignSession.currentPlayer,
+          toPlayer: newPlayer,
+        }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || "Reassignment failed");
+      setReassignModalOpen(false);
+      setReassignSession(null);
+      setReassignSelectedPlayer("");
+      setReassignConfirm(false);
+      setReassignWarn(false);
+      await new Promise(r => setTimeout(r, 300)); // UX: allow modal to close
+      window.location.reload(); // or call fetchSchedule() if available
+    } catch (err: any) {
+      setReassignError(err.message || "Reassignment failed");
+    } finally {
+      setReassignLoading(false);
+    }
+  }
+
   return (
     <>
       {loggedInUser ? (
@@ -83,6 +154,7 @@ const ScheduleTab: React.FC<ScheduleTabProps> = ({
                     slotActionLoading={slotActionLoading}
                     handleOfferSlot={handleOfferSlot}
                     handleRequestSwap={handleRequestSwap}
+                    onReassignClick={handleReassignClick}
                   />
                 ))
               )}
@@ -93,6 +165,20 @@ const ScheduleTab: React.FC<ScheduleTabProps> = ({
         <div className="text-center text-gray-500 py-10">
           You need to log in to use the app.
         </div>
+      )}
+      {reassignSession && (
+        <ReassignSlotModal
+          open={reassignModalOpen}
+          onOpenChange={setReassignModalOpen}
+          sessionInfo={reassignSession}
+          userMapping={userMapping}
+          onReassign={handleReassign}
+          loading={reassignLoading}
+          error={reassignError}
+          selectedPlayer={reassignSelectedPlayer}
+          warn={reassignWarn}
+          onConfirm={() => handleReassign(reassignSelectedPlayer)}
+        />
       )}
     </>
   );

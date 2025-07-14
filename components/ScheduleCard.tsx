@@ -32,6 +32,7 @@ interface ScheduleCardProps {
   slotActionLoading: string | null;
   handleOfferSlot: (date: string, time: string, player: string, sessionId: string) => void;
   handleRequestSwap: (slot: any) => void;
+  onReassignClick?: (sessionInfo: { date: string; time: string; currentPlayer: string }) => void;
 }
 
 function normalizeDate(date: string) {
@@ -61,6 +62,7 @@ export default function ScheduleCard({
   slotActionLoading,
   handleOfferSlot,
   handleRequestSwap,
+  onReassignClick,
 }: ScheduleCardProps) {
   return (
     <Card key={game.id} className="border-l-4 border-l-orange-500">
@@ -159,26 +161,35 @@ export default function ScheduleCard({
                 ) : null
               )}
               {/* Slot for grabs actions */}
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="mt-3 flex flex-row gap-1 overflow-x-auto whitespace-nowrap min-w-0">
                 {/* Offer slot button for the logged-in user */}
                 {isUserParticipant && !userSlot && (
-                  <div className="flex gap-2">
+                  <>
                     <Button
                       size="sm"
                       variant="outline"
                       disabled={slotActionLoading === sessionId}
                       onClick={() => handleOfferSlot(game.date, session.time, playerName!, sessionId)}
                     >
-                      {slotActionLoading === sessionId ? "Offering..." : "Offer Slot For Grabs"}
+                      {slotActionLoading === sessionId ? "Offering..." : "Offer for grabs"}
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => handleRequestSwap({ Date: game.date, Time: session.time })}
                     >
-                      Offer for Swap
+                      Offer for swap
                     </Button>
-                  </div>
+                    {onReassignClick && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onReassignClick({ date: game.date, time: session.time, currentPlayer: playerName! })}
+                      >
+                        Reassign
+                      </Button>
+                    )}
+                  </>
                 )}
               </div>
             </div>
