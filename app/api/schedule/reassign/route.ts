@@ -4,6 +4,13 @@ import { getGoogleSheetsClient } from "@/lib/googleSheets";
 const SCHEDULE_SHEET = "Daily schedule";
 const SLOTS_SHEET = "Slots for grabs";
 
+function normalizeDate(dateStr: string) {
+  if (!dateStr) return '';
+  const [d, m] = dateStr.split('.').map(Number);
+  if (isNaN(d) || isNaN(m)) return dateStr.trim();
+  return `${d.toString().padStart(2, '0')}.${m.toString().padStart(2, '0')}`;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { date, time, fromPlayer, toPlayer } = await req.json();
@@ -30,7 +37,7 @@ export async function POST(req: NextRequest) {
       if (!details) continue;
       // Format: 'DD.MM / weekDay / HH:MM - HH:MM'
       const [rowDate, , rowTime] = details.split(' / ');
-      if (rowDate?.trim() === date && rowTime?.trim() === time) {
+      if (normalizeDate(rowDate?.trim()) === normalizeDate(date) && rowTime?.trim() === time) {
         sessionRowIdx = i;
         players = (playerList || '').split(',').map((p: string) => p.trim()).filter(Boolean);
         break;
@@ -50,7 +57,7 @@ export async function POST(req: NextRequest) {
       requestBody: { values: [[players.join(', ')]] },
     });
 
-    // 2. Add entry to Slots for grabs with status 'Reassigned'
+    // 2. Add entry to Slots for grabs with status 'reassigned'
     const now = new Date().toISOString();
     await sheets.spreadsheets.values.append({
       spreadsheetId,
