@@ -31,7 +31,7 @@ export default function Header({ session, onSignIn, onSignOut }: HeaderProps) {
             {loggedInUser ? (
               <>
                 <Avatar className="w-8 h-8">
-                  <AvatarImage src={loggedInUser.image || "/summerHoopsLogo.png"} alt={loggedInUser.name || "User"} />
+                  <AvatarImage src={loggedInUser.image || "/profile-default.png"} alt={loggedInUser.name || "User"} onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/profile-default.png"; }} />
                   <AvatarFallback>
                     {loggedInUser.name
                       ?.split(" ")

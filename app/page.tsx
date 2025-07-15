@@ -340,34 +340,8 @@ export default function SummerHoopsScheduler() {
     return false;
   }
 
-  // Define a color map for up to 25 players (use the palette provided earlier)
-  const playerColors: Record<string, string> = {
-    "Nathan": "#4CAF50",
-    "Amit": "#81C784",
-    "Micha": "#388E3C",
-    "Andreas": "#A5D6A7",
-    "Bruno": "#FBC02D",
-    "Mark": "#FFF176",
-    "Kyle": "#FFD600",
-    "Vedran": "#FFB300",
-    "Jaime": "#FFA726",
-    "Vic": "#FB8C00",
-    "Shafiq": "#FF7043",
-    "Chris": "#FFCC80",
-    "Antoine": "#F57C00",
-    "Thibault": "#C0CA33",
-    "Tasos": "#D4E157",
-    "Fran": "#AED581",
-    "Romario": "#FFEB3B",
-    "Varun": "#F9A825",
-    "Sam": "#8D6E63",
-    "Daryl": "#FFD54F",
-    "Ricardo": "#43A047",
-    "testMicha": "#C62828"
-  };
-
   function getPlayerColor(name: string) {
-    return playerColors[name] || '#E0E0E0'; // fallback to a neutral gray
+    return userMapping[name]?.color || '#E0E0E0'; // fallback to a neutral gray
   }
 
   function handleClaimClick(slot: any, claimSessionId: string) {

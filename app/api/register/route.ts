@@ -9,6 +9,9 @@ export async function POST(req: NextRequest) {
     if (!name || !email) {
       return NextResponse.json({ error: "Name and email are required." }, { status: 400 });
     }
+    if (name.trim().includes(" ")) {
+      return NextResponse.json({ error: "Name must be a single word (no spaces)." }, { status: 400 });
+    }
     const sheets = await getGoogleSheetsClient();
     const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
 

@@ -77,7 +77,7 @@ export default function SlotCard({
           <Avatar className="w-6 h-6">
             <AvatarImage
               src={`/profile-${slot.Player.replace(/\s+/g, "").toLowerCase()}.png`}
-              onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/summerHoopsLogo.png"; }}
+              onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/profile-default.png"; }}
             />
             <AvatarFallback className="text-xs">
               {slot.Player.split(" ").map((n: string) => n[0]).join("")}

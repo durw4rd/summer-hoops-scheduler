@@ -131,7 +131,7 @@ export default function ScheduleCard({
                           <Avatar className="w-4 h-4">
                             <AvatarImage
                               src={`/profile-${playerId.replace(/\s+/g, "").toLowerCase()}.png`}
-                              onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/summerHoopsLogo.png"; }}
+                              onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/profile-default.png"; }}
                             />
                             <AvatarFallback className="text-xs">
                               {playerId
