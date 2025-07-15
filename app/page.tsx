@@ -35,6 +35,10 @@ export default function SummerHoopsScheduler() {
   const [claimConfirmOpen, setClaimConfirmOpen] = useState(false);
   const [pendingClaimSlot, setPendingClaimSlot] = useState<any | null>(null);
   const [userMappingLoading, setUserMappingLoading] = useState(true);
+  const [swapConfirmOpen, setSwapConfirmOpen] = useState(false);
+  const [pendingSwapSlot, setPendingSwapSlot] = useState<any | null>(null);
+  const [confirmationType, setConfirmationType] = useState<null | 'claim' | 'swap'>(null);
+  const [pendingConfirmationSlot, setPendingConfirmationSlot] = useState<any | null>(null);
 
   // 2. Find the logged-in user's player name using their email
   const loggedInUser = session?.user;
@@ -220,6 +224,24 @@ export default function SummerHoopsScheduler() {
   // Handler to accept a swap
   async function handleAcceptSwap(swapSlot: any) {
     if (!playerName) return;
+    // Check if user is already in the target session (requestedDate, requestedTime)
+    let isUserInTargetSession = false;
+    for (const game of schedule) {
+      if (normalizeDate(game.date) === normalizeDate(swapSlot.RequestedDate)) {
+        for (const session of game.sessions) {
+          if (session.time.trim() === swapSlot.RequestedTime.trim()) {
+            if (session.players.some((p: string) => p.toLowerCase() === playerName.toLowerCase())) {
+              isUserInTargetSession = true;
+            }
+          }
+        }
+      }
+    }
+    if (isUserInTargetSession) {
+      setConfirmationType('swap');
+      setPendingConfirmationSlot(swapSlot);
+      return;
+    }
     setAcceptSwapLoading(`${swapSlot.Date}-${swapSlot.Time}-${swapSlot.Player}`);
     try {
       await fetch('/api/slots/swap', {
@@ -361,8 +383,8 @@ export default function SummerHoopsScheduler() {
       }
     }
     if (isUserInSession) {
-      setClaimConfirmOpen(true);
-      setPendingClaimSlot({ ...slot, claimSessionId });
+      setConfirmationType('claim');
+      setPendingConfirmationSlot({ ...slot, claimSessionId });
     } else {
       handleClaimSlot(slot.Date, slot.Time, slot.Player, playerName!, claimSessionId);
     }
@@ -466,25 +488,45 @@ export default function SummerHoopsScheduler() {
 
       {/* Claim Confirmation Modal */}
       <ClaimConfirmationModal
-        open={claimConfirmOpen}
-        onOpenChange={setClaimConfirmOpen}
-        pendingSlot={pendingClaimSlot}
-        onConfirm={() => {
-          if (pendingClaimSlot) {
+        open={!!confirmationType}
+        onOpenChange={(open) => { if (!open) { setConfirmationType(null); setPendingConfirmationSlot(null); } }}
+        pendingSlot={pendingConfirmationSlot}
+        type={confirmationType || 'claim'}
+        onConfirm={async () => {
+          if (confirmationType === 'claim' && pendingConfirmationSlot) {
             handleClaimSlot(
-              pendingClaimSlot.Date,
-              pendingClaimSlot.Time,
-              pendingClaimSlot.Player,
+              pendingConfirmationSlot.Date,
+              pendingConfirmationSlot.Time,
+              pendingConfirmationSlot.Player,
               playerName!,
-              pendingClaimSlot.claimSessionId
+              pendingConfirmationSlot.claimSessionId
             );
+          } else if (confirmationType === 'swap' && pendingConfirmationSlot) {
+            setAcceptSwapLoading(`${pendingConfirmationSlot.Date}-${pendingConfirmationSlot.Time}-${pendingConfirmationSlot.Player}`);
+            try {
+              await fetch('/api/slots/swap', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  date: pendingConfirmationSlot.Date,
+                  time: pendingConfirmationSlot.Time,
+                  player: pendingConfirmationSlot.Player,
+                  requestedDate: pendingConfirmationSlot.RequestedDate,
+                  requestedTime: pendingConfirmationSlot.RequestedTime,
+                  acceptingPlayer: playerName,
+                }),
+              });
+              await fetchAvailableSlots();
+            } finally {
+              setAcceptSwapLoading(null);
+            }
           }
-          setClaimConfirmOpen(false);
-          setPendingClaimSlot(null);
+          setConfirmationType(null);
+          setPendingConfirmationSlot(null);
         }}
         onCancel={() => {
-          setClaimConfirmOpen(false);
-          setPendingClaimSlot(null);
+          setConfirmationType(null);
+          setPendingConfirmationSlot(null);
         }}
       />
     </div>

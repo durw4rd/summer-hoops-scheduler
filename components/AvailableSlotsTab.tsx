@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import SlotCard from "@/components/SlotCard";
-import React from "react";
+import React, { useState } from "react";
 
 interface AvailableSlotsTabProps {
   allSlots: any[];
@@ -47,6 +47,22 @@ const AvailableSlotsTab: React.FC<AvailableSlotsTabProps> = ({
   onClaimClick,
   loggedInUser,
 }) => {
+  const [showAllOffers, setShowAllOffers] = useState(false);
+
+  // Filter slots based on showAllOffers
+  const filteredSlots = showAllOffers ? availableSlots : availableSlots.filter((slot: any) => {
+    if (!playerName) return false;
+    // User's own offer
+    if (slot.Player === playerName) return true;
+    // Up for grabs: always show, even if user is already in session
+    if (slot.Status === 'offered' && slot.SwapRequested !== 'yes') {
+      return true;
+    }
+    // Swap offer: user is eligible to accept
+    if (slot.SwapRequested === 'yes' && isEligibleForSwap(slot)) return true;
+    return false;
+  });
+
   return (
     <>
       {loggedInUser ? (
@@ -61,6 +77,13 @@ const AvailableSlotsTab: React.FC<AvailableSlotsTabProps> = ({
             </Button>
             <Button
               size="sm"
+              variant={showAllOffers ? "default" : "outline"}
+              onClick={() => setShowAllOffers((v) => !v)}
+            >
+              {showAllOffers ? "Show Only Mine & Eligible" : "Show All Offers"}
+            </Button>
+            <Button
+              size="sm"
               variant={showOnlyMine ? "default" : "outline"}
               onClick={() => setShowOnlyMine((v) => !v)}
             >
@@ -71,30 +94,7 @@ const AvailableSlotsTab: React.FC<AvailableSlotsTabProps> = ({
             <div className="text-center text-gray-500 py-10">Loading available slots...</div>
           ) : (
             (() => {
-              const filteredSlots = showInactiveSlots ? allSlots : availableSlots;
-              const mineFilteredSlots = showOnlyMine && playerName
-                ? filteredSlots.filter((slot: any) => slot.Player === playerName)
-                : filteredSlots;
-              // Remove duplicate offers for the same session from the same user (keep most recent by Timestamp if available)
-              const seen = new Map();
-              mineFilteredSlots.forEach((slot: any) => {
-                const key = `${slot.Date}__${slot.Time}__${slot.Player}`;
-                if (!seen.has(key) || (slot.Timestamp && seen.get(key).Timestamp < slot.Timestamp)) {
-                  seen.set(key, slot);
-                }
-              });
-              // Sort by date and time
-              const slotsArr = Array.from(seen.values());
-              slotsArr.sort((a, b) => {
-                const [dayA, monthA] = a.Date.split('.').map(Number);
-                const [dayB, monthB] = b.Date.split('.').map(Number);
-                const dateA = new Date(new Date().getFullYear(), monthA - 1, dayA);
-                const dateB = new Date(new Date().getFullYear(), monthB - 1, dayB);
-                if (dateA.getTime() !== dateB.getTime()) return dateA.getTime() - dateB.getTime();
-                const timeA = a.Time.split(':').map(Number);
-                const timeB = b.Time.split(':').map(Number);
-                return timeA[0] - timeB[0] || timeA[1] - timeB[1];
-              });
+              const slotsArr = filteredSlots;
               return (
                 <div className="space-y-3">
                   {slotsArr.length === 0 ? (

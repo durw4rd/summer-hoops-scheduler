@@ -16,20 +16,24 @@ export default function ClaimConfirmationModal({
   pendingSlot,
   onConfirm,
   onCancel,
-}: ClaimConfirmationModalProps) {
+  type = 'claim',
+}: ClaimConfirmationModalProps & { type?: 'claim' | 'swap' }) {
+  const isSwap = type === 'swap';
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Claim Additional Spot?</DialogTitle>
+          <DialogTitle>{isSwap ? 'Accept Additional Swap?' : 'Claim Additional Spot?'}</DialogTitle>
           <DialogDescription>
-            You are already attending this session. Are you sure you want to claim an additional spot?
+            {isSwap
+              ? 'You are already attending this session. Are you sure you want to accept a swap and get an additional spot?'
+              : 'You are already attending this session. Are you sure you want to claim an additional spot?'}
           </DialogDescription>
         </DialogHeader>
         <div className="flex justify-end gap-2 mt-4">
           <Button variant="outline" onClick={onCancel}>Cancel</Button>
           <Button variant="default" onClick={onConfirm}>
-            Yes, claim anyway
+            {isSwap ? 'Yes, accept anyway' : 'Yes, claim anyway'}
           </Button>
         </div>
       </DialogContent>
