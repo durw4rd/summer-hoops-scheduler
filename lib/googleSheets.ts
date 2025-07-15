@@ -314,15 +314,18 @@ export async function acceptSlotSwap({ date, time, player, requestedDate, reques
   }
   if (offerRowIdx === -1 || requestRowIdx === -1) throw new Error('Session(s) not found in schedule');
 
-  // Swap the players
-  // Remove offering player from their slot, add accepting player
-  offerPlayers = offerPlayers.filter(p => p.toLowerCase() !== player.toLowerCase());
-  if (!offerPlayers.includes(acceptingPlayer)) offerPlayers.push(acceptingPlayer);
-  // In the target session, replace accepting player with offering player
-  const acceptingIdx = requestPlayers.findIndex(p => p.toLowerCase() === acceptingPlayer.toLowerCase());
-  if (acceptingIdx !== -1) {
-    requestPlayers.splice(acceptingIdx, 1, player);
-  } else if (!requestPlayers.includes(player)) {
+  // Remove offering player from their slot, add accepting player (replace one instance, or add if not found)
+  const offerIdx = offerPlayers.findIndex(p => p.toLowerCase() === player.toLowerCase());
+  if (offerIdx !== -1) {
+    offerPlayers.splice(offerIdx, 1, acceptingPlayer);
+  } else {
+    offerPlayers.push(acceptingPlayer);
+  }
+  // In the target session, replace one instance of accepting player with offering player (or add if not found)
+  const acceptIdx = requestPlayers.findIndex(p => p.toLowerCase() === acceptingPlayer.toLowerCase());
+  if (acceptIdx !== -1) {
+    requestPlayers.splice(acceptIdx, 1, player);
+  } else {
     requestPlayers.push(player);
   }
 
