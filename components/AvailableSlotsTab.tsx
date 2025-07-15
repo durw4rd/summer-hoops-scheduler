@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import SlotCard from "@/components/SlotCard";
 import React, { useState } from "react";
+import { Switch } from "@/components/ui/switch";
 
 interface AvailableSlotsTabProps {
   allSlots: any[];
@@ -47,48 +48,76 @@ const AvailableSlotsTab: React.FC<AvailableSlotsTabProps> = ({
   onClaimClick,
   loggedInUser,
 }) => {
-  const [showAllOffers, setShowAllOffers] = useState(false);
+  const [showAllActive, setShowAllActive] = useState(false);
+  const [showMine, setShowMine] = useState(false); // default to false
+  const [showInactive, setShowInactive] = useState(false);
 
-  // Filter slots based on showAllOffers
-  const filteredSlots = showAllOffers ? availableSlots : availableSlots.filter((slot: any) => {
-    if (!playerName) return false;
-    // User's own offer
-    if (slot.Player === playerName) return true;
-    // Up for grabs: always show, even if user is already in session
-    if (slot.Status === 'offered' && slot.SwapRequested !== 'yes') {
-      return true;
-    }
-    // Swap offer: user is eligible to accept
-    if (slot.SwapRequested === 'yes' && isEligibleForSwap(slot)) return true;
-    return false;
-  });
+  // Filtering logic
+  let baseSlots = showInactive ? allSlots : allSlots.filter((slot: any) => slot.Status === 'offered');
+  if (!showMine) {
+    baseSlots = baseSlots.filter((slot: any) => slot.Player !== playerName);
+  }
+  const filteredSlots = showAllActive
+    ? baseSlots
+    : baseSlots.filter((slot: any) => {
+        if (!playerName) return false;
+        // User's own offer (if showMine is true)
+        if (showMine && slot.Player === playerName) return true;
+        // Up for grabs: always show, even if user is already in session
+        if (slot.Status === 'offered' && slot.SwapRequested !== 'yes') {
+          return true;
+        }
+        // Swap offer: user is eligible to accept
+        if (slot.SwapRequested === 'yes' && isEligibleForSwap(slot)) return true;
+        return false;
+      });
+
+  // Filter description
+  let filterDescription = '';
+  if (showAllActive && showInactive && showMine) {
+    filterDescription = 'Showing all offers, including inactive and your own.';
+  } else if (showAllActive && showInactive) {
+    filterDescription = 'Showing all offers, including inactive.';
+  } else if (showAllActive && showMine) {
+    filterDescription = 'Showing all active offers, including your own.';
+  } else if (showAllActive) {
+    filterDescription = 'Showing all active offers.';
+  } else if (showInactive && showMine) {
+    filterDescription = 'Showing eligible and your own offers, including inactive.';
+  } else if (showInactive) {
+    filterDescription = 'Showing eligible offers, including inactive.';
+  } else if (showMine) {
+    filterDescription = 'Showing eligible and your own active offers.';
+  } else {
+    filterDescription = 'Showing eligible active offers.';
+  }
 
   return (
     <>
       {loggedInUser ? (
         <>
-          <div className="flex justify-end mb-4 gap-2">
+          <div className="mb-2 text-sm text-gray-700 text-center font-medium">
+            {filterDescription}
+          </div>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
             <Button
               size="sm"
-              variant={showInactiveSlots ? "default" : "outline"}
-              onClick={() => setShowInactiveSlots((v) => !v)}
+              variant={showAllActive ? "default" : "outline"}
+              onClick={() => setShowAllActive((v) => !v)}
+              className={showAllActive ? 'bg-gray-200 border-gray-400' : ''}
             >
-              {showInactiveSlots ? "Hide Inactive Offers" : "Show Inactive Offers"}
+              {showAllActive ? "Show Only Eligible" : "Show All Active Offers"}
             </Button>
-            <Button
-              size="sm"
-              variant={showAllOffers ? "default" : "outline"}
-              onClick={() => setShowAllOffers((v) => !v)}
-            >
-              {showAllOffers ? "Show Only Mine & Eligible" : "Show All Offers"}
-            </Button>
-            <Button
-              size="sm"
-              variant={showOnlyMine ? "default" : "outline"}
-              onClick={() => setShowOnlyMine((v) => !v)}
-            >
-              {showOnlyMine ? "Show All Offers" : "Show Only Mine"}
-            </Button>
+            <div className="flex items-center gap-4 mt-2 sm:mt-0">
+              <div className="flex items-center gap-2">
+                <Switch id="show-mine" checked={showMine} onCheckedChange={setShowMine} />
+                <label htmlFor="show-mine" className="text-xs text-gray-700 select-none">Show My Offers</label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch id="show-inactive" checked={showInactive} onCheckedChange={setShowInactive} />
+                <label htmlFor="show-inactive" className="text-xs text-gray-700 select-none">Show Inactive</label>
+              </div>
+            </div>
           </div>
           {slotsLoading ? (
             <div className="text-center text-gray-500 py-10">Loading available slots...</div>

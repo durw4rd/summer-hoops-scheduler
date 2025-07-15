@@ -32,13 +32,9 @@ export default function SummerHoopsScheduler() {
   const [swapLoading, setSwapLoading] = useState(false);
   const [condensedMode, setCondensedMode] = useState(false);
   const [showOnlyMine, setShowOnlyMine] = useState(false);
-  const [claimConfirmOpen, setClaimConfirmOpen] = useState(false);
-  const [pendingClaimSlot, setPendingClaimSlot] = useState<any | null>(null);
-  const [userMappingLoading, setUserMappingLoading] = useState(true);
-  const [swapConfirmOpen, setSwapConfirmOpen] = useState(false);
-  const [pendingSwapSlot, setPendingSwapSlot] = useState<any | null>(null);
   const [confirmationType, setConfirmationType] = useState<null | 'claim' | 'swap'>(null);
   const [pendingConfirmationSlot, setPendingConfirmationSlot] = useState<any | null>(null);
+  const [userMappingLoading, setUserMappingLoading] = useState(true);
 
   // 2. Find the logged-in user's player name using their email
   const loggedInUser = session?.user;

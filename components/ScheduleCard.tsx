@@ -141,7 +141,7 @@ export default function ScheduleCard({
               <div className="my-2 border-t border-gray-200" />
               {(!condensedMode && session.players.length > 0) && (
                 <>
-                  <div className="mt-3 flex flex-wrap gap-1">
+                  <div className="mt-3 flex flex-wrap gap-1 relative">
                     {/* Group and count players to avoid duplicate keys and show +N for multiples */}
                     {(() => {
                       const playerCounts: Record<string, number> = {};
@@ -181,9 +181,14 @@ export default function ScheduleCard({
                         );
                       });
                     })()}
+                    <span className="absolute bottom-0 right-0 text-xs text-gray-500 bg-white bg-opacity-80 px-2 py-0.5 rounded">
+                      {session.players.length}/{session.maxPlayers}
+                    </span>
                   </div>
-                  {/* Subtle separator below player names */}
-                  <div className="my-2 border-t border-gray-200" />
+                  {/* Subtle separator below player names, only if action buttons are visible */}
+                  {isUserParticipant && !userSlot && (
+                    <div className="my-2 border-t border-gray-200" />
+                  )}
                 </>
               )}
               {/* Show tag for user's slot offer type, only one at a time, and only for active offers, below player list or in same place if condensed */}
