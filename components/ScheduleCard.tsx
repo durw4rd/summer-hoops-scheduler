@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { useState } from "react";
 // Remove icon imports
 // import { Gift, Repeat, UserPlus } from "lucide-react";
@@ -138,7 +139,7 @@ export default function ScheduleCard({
                 </div>
               </div>
               {/* Subtle separator between badges and player names */}
-              <div className="my-2 border-t border-gray-200" />
+              <Separator className="my-2" />
               {(!condensedMode && session.players.length > 0) && (
                 <>
                   <div className="mt-3 flex flex-wrap gap-1 relative">
@@ -185,10 +186,8 @@ export default function ScheduleCard({
                       {session.players.length}/{session.maxPlayers}
                     </span>
                   </div>
-                  {/* Subtle separator below player names, only if action buttons are visible */}
-                  {isUserParticipant && !userSlot && (
-                    <div className="my-2 border-t border-gray-200" />
-                  )}
+                  {/* Always show subtle separator below player names */}
+                  <Separator className="my-2" />
                 </>
               )}
               {/* Show tag for user's slot offer type, only one at a time, and only for active offers, below player list or in same place if condensed */}

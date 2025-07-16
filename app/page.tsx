@@ -32,8 +32,16 @@ export default function SummerHoopsScheduler() {
   const [swapLoading, setSwapLoading] = useState(false);
   const [condensedMode, setCondensedMode] = useState(false);
   const [showOnlyMine, setShowOnlyMine] = useState(false);
-  const [confirmationType, setConfirmationType] = useState<null | 'claim' | 'swap'>(null);
-  const [pendingConfirmationSlot, setPendingConfirmationSlot] = useState<any | null>(null);
+  const [confirmationModal, setConfirmationModal] = useState<{
+    open: boolean;
+    slot: any | null;
+    type: 'claim' | 'swap';
+    alreadyInSession: boolean;
+    claimSessionId?: string;
+  } | null>(null);
+  // Track if user is already in the session or swap target for modal
+  const [alreadyInSession, setAlreadyInSession] = useState(false);
+  const [alreadyInTargetSession, setAlreadyInTargetSession] = useState(false);
   const [userMappingLoading, setUserMappingLoading] = useState(true);
 
   // 2. Find the logged-in user's player name using their email
@@ -220,42 +228,25 @@ export default function SummerHoopsScheduler() {
   // Handler to accept a swap
   async function handleAcceptSwap(swapSlot: any) {
     if (!playerName) return;
-    // Check if user is already in the target session (requestedDate, requestedTime)
-    let isUserInTargetSession = false;
+    // Check if user is already in the OFFERING session (not the target session)
+    let isUserInOfferingSession = false;
     for (const game of schedule) {
-      if (normalizeDate(game.date) === normalizeDate(swapSlot.RequestedDate)) {
+      if (normalizeDate(game.date) === normalizeDate(swapSlot.Date)) {
         for (const session of game.sessions) {
-          if (session.time.trim() === swapSlot.RequestedTime.trim()) {
+          if (session.time.trim() === swapSlot.Time.trim()) {
             if (session.players.some((p: string) => p.toLowerCase() === playerName.toLowerCase())) {
-              isUserInTargetSession = true;
+              isUserInOfferingSession = true;
             }
           }
         }
       }
     }
-    if (isUserInTargetSession) {
-      setConfirmationType('swap');
-      setPendingConfirmationSlot(swapSlot);
-      return;
-    }
-    setAcceptSwapLoading(`${swapSlot.Date}-${swapSlot.Time}-${swapSlot.Player}`);
-    try {
-      await fetch('/api/slots/swap', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          date: swapSlot.Date,
-          time: swapSlot.Time,
-          player: swapSlot.Player, // the offering player
-          requestedDate: swapSlot.RequestedDate,
-          requestedTime: swapSlot.RequestedTime,
-          acceptingPlayer: playerName, // the user accepting the swap
-        }),
-      });
-      await fetchAvailableSlots();
-    } finally {
-      setAcceptSwapLoading(null);
-    }
+    setConfirmationModal({
+      open: true,
+      slot: swapSlot,
+      type: 'swap',
+      alreadyInSession: isUserInOfferingSession,
+    });
   }
 
   // handleRequestSwap always takes a slot and sets it as the source
@@ -363,7 +354,6 @@ export default function SummerHoopsScheduler() {
   }
 
   function handleClaimClick(slot: any, claimSessionId: string) {
-    // Check if user is already in the session
     let isUserInSession = false;
     if (playerName) {
       for (const game of schedule) {
@@ -378,12 +368,13 @@ export default function SummerHoopsScheduler() {
         }
       }
     }
-    if (isUserInSession) {
-      setConfirmationType('claim');
-      setPendingConfirmationSlot({ ...slot, claimSessionId });
-    } else {
-      handleClaimSlot(slot.Date, slot.Time, slot.Player, playerName!, claimSessionId);
-    }
+    setConfirmationModal({
+      open: true,
+      slot,
+      type: 'claim',
+      alreadyInSession: isUserInSession,
+      claimSessionId,
+    });
   }
 
   async function handleRegister(name: string) {
@@ -482,33 +473,37 @@ export default function SummerHoopsScheduler() {
         loading={swapLoading}
       />
 
-      {/* Claim Confirmation Modal */}
+      {/* Claim Confirmation Modal (already in session or swap target) */}
       <ClaimConfirmationModal
-        open={!!confirmationType}
-        onOpenChange={(open) => { if (!open) { setConfirmationType(null); setPendingConfirmationSlot(null); } }}
-        pendingSlot={pendingConfirmationSlot}
-        type={confirmationType || 'claim'}
+        open={!!confirmationModal?.open}
+        onOpenChange={(open) => {
+          if (!open) setConfirmationModal(null);
+        }}
+        pendingSlot={confirmationModal?.slot}
+        type={confirmationModal?.type}
+        alreadyInSession={!!confirmationModal?.alreadyInSession}
         onConfirm={async () => {
-          if (confirmationType === 'claim' && pendingConfirmationSlot) {
+          if (!confirmationModal) return;
+          if (confirmationModal.type === 'claim' && confirmationModal.slot) {
             handleClaimSlot(
-              pendingConfirmationSlot.Date,
-              pendingConfirmationSlot.Time,
-              pendingConfirmationSlot.Player,
+              confirmationModal.slot.Date,
+              confirmationModal.slot.Time,
+              confirmationModal.slot.Player,
               playerName!,
-              pendingConfirmationSlot.claimSessionId
+              confirmationModal.claimSessionId || ""
             );
-          } else if (confirmationType === 'swap' && pendingConfirmationSlot) {
-            setAcceptSwapLoading(`${pendingConfirmationSlot.Date}-${pendingConfirmationSlot.Time}-${pendingConfirmationSlot.Player}`);
+          } else if (confirmationModal.type === 'swap' && confirmationModal.slot) {
+            setAcceptSwapLoading(`${confirmationModal.slot.Date}-${confirmationModal.slot.Time}-${confirmationModal.slot.Player}`);
             try {
               await fetch('/api/slots/swap', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                  date: pendingConfirmationSlot.Date,
-                  time: pendingConfirmationSlot.Time,
-                  player: pendingConfirmationSlot.Player,
-                  requestedDate: pendingConfirmationSlot.RequestedDate,
-                  requestedTime: pendingConfirmationSlot.RequestedTime,
+                  date: confirmationModal.slot.Date,
+                  time: confirmationModal.slot.Time,
+                  player: confirmationModal.slot.Player,
+                  requestedDate: confirmationModal.slot.RequestedDate,
+                  requestedTime: confirmationModal.slot.RequestedTime,
                   acceptingPlayer: playerName,
                 }),
               });
@@ -517,13 +512,9 @@ export default function SummerHoopsScheduler() {
               setAcceptSwapLoading(null);
             }
           }
-          setConfirmationType(null);
-          setPendingConfirmationSlot(null);
+          setConfirmationModal(null);
         }}
-        onCancel={() => {
-          setConfirmationType(null);
-          setPendingConfirmationSlot(null);
-        }}
+        onCancel={() => setConfirmationModal(null)}
       />
     </div>
   )

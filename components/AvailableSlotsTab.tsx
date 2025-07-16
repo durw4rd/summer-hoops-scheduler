@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import SlotCard from "@/components/SlotCard";
 import React, { useState } from "react";
 import { Switch } from "@/components/ui/switch";
+import { compareSlotsByDateTime } from "@/lib/utils";
 
 interface AvailableSlotsTabProps {
   allSlots: any[];
@@ -123,7 +124,7 @@ const AvailableSlotsTab: React.FC<AvailableSlotsTabProps> = ({
             <div className="text-center text-gray-500 py-10">Loading available slots...</div>
           ) : (
             (() => {
-              const slotsArr = filteredSlots;
+              const slotsArr = [...filteredSlots].sort(compareSlotsByDateTime);
               return (
                 <div className="space-y-3">
                   {slotsArr.length === 0 ? (
