@@ -6,7 +6,7 @@ const SHEET_SLOTS_FOR_GRABS = "Slots for grabs";
 /** Name of the user mapping sheet */
 const SHEET_USER_MAPPING = "User mapping";
 /** Range for the schedule (update as needed for new rows) */
-const RANGE_SCHEDULE = `${SHEET_DAILY_SCHEDULE}!B5:D30`;
+const RANGE_SCHEDULE = `${SHEET_DAILY_SCHEDULE}!B5:D`;
 /** Range for the slots for grabs sheet */
 const RANGE_SLOTS = SHEET_SLOTS_FOR_GRABS;
 /** Range for the user mapping sheet */

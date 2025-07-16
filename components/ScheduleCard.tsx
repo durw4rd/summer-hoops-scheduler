@@ -70,10 +70,18 @@ export default function ScheduleCard({
   onClaimAvailableSlot,
 }: ScheduleCardProps) {
   return (
-    <Card key={game.id} className="border-l-4 border-l-orange-500">
+    <Card
+      key={game.id}
+      className={`border-l-4 ${game.date === '20.08' ? 'border-l-yellow-500 bg-yellow-50 shadow-lg ring-2 ring-yellow-300' : 'border-l-orange-500'}`}
+    >
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">{game.day} ({game.date})</CardTitle>
+          <CardTitle className="text-lg flex items-center gap-2">
+            {game.day} ({game.date})
+            {game.date === '20.08' && (
+              <span className="ml-2 px-3 py-1 rounded-full bg-yellow-400 text-yellow-900 font-bold text-xs border border-yellow-600 animate-pulse">�� Tournament</span>
+            )}
+          </CardTitle>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">

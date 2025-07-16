@@ -10,6 +10,8 @@ import ClaimConfirmationModal from "@/components/ClaimConfirmationModal";
 import ScheduleTab from "@/components/ScheduleTab";
 import AvailableSlotsTab from "@/components/AvailableSlotsTab";
 import RegisterPrompt from "@/components/RegisterPrompt";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import TournamentSplash from "@/components/TournamentSplash";
 
 export default function SummerHoopsScheduler() {
   const { data: session } = useSession();
@@ -43,6 +45,8 @@ export default function SummerHoopsScheduler() {
   const [alreadyInSession, setAlreadyInSession] = useState(false);
   const [alreadyInTargetSession, setAlreadyInTargetSession] = useState(false);
   const [userMappingLoading, setUserMappingLoading] = useState(true);
+  const [showTournamentSplash, setShowTournamentSplash] = useState(false);
+  const [tournamentSplashOptOut, setTournamentSplashOptOut] = useState(false);
 
   // 2. Find the logged-in user's player name using their email
   const loggedInUser = session?.user;
@@ -138,6 +142,13 @@ export default function SummerHoopsScheduler() {
     }
   }
 
+  // Check localStorage for opt-out on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setTournamentSplashOptOut(localStorage.getItem('tournamentSplashOptOut') === '1');
+    }
+  }, []);
+
   useEffect(() => {
     fetchSchedule();
   }, []);
@@ -145,6 +156,18 @@ export default function SummerHoopsScheduler() {
   useEffect(() => {
     fetchAvailableSlots();
   }, []);
+
+  // Show tournament splash if user is attending 20/8 and not opted out
+  useEffect(() => {
+    if (!playerName || !schedule.length || tournamentSplashOptOut) return;
+    const isInTournament = schedule.some(game =>
+      game.date === '20.08' &&
+      game.sessions.some((session: any) =>
+        session.players.some((p: string) => p.toLowerCase() === playerName.toLowerCase())
+      )
+    );
+    setShowTournamentSplash(isInTournament);
+  }, [playerName, schedule, tournamentSplashOptOut]);
 
   // Tab change handler
   function handleTabChange(tab: string) {
@@ -532,6 +555,17 @@ export default function SummerHoopsScheduler() {
           setConfirmationModal(null);
         }}
         onCancel={() => setConfirmationModal(null)}
+      />
+
+      {/* Tournament Splash Modal */}
+      <TournamentSplash
+        open={showTournamentSplash}
+        onOpenChange={setShowTournamentSplash}
+        onDontShowAgain={() => {
+          setTournamentSplashOptOut(true);
+          localStorage.setItem('tournamentSplashOptOut', '1');
+          setShowTournamentSplash(false);
+        }}
       />
     </div>
   )
