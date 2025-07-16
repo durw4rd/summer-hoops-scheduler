@@ -118,7 +118,7 @@ export async function claimSlot({ date, time, player, claimer }: { date: string;
 
   // --- Update Daily schedule sheet ---
   // Fetch the relevant range (B5:C28)
-  const scheduleRange = 'Daily schedule!B5:C28';
+  const scheduleRange = 'Daily schedule!B5:C30';
   const scheduleRes = await sheets.spreadsheets.values.get({
     spreadsheetId,
     range: scheduleRange,
