@@ -1,3 +1,19 @@
+// Sheet and range constants
+/** Name of the daily schedule sheet */
+const SHEET_DAILY_SCHEDULE = "Daily schedule";
+/** Name of the slots for grabs sheet */
+const SHEET_SLOTS_FOR_GRABS = "Slots for grabs";
+/** Name of the user mapping sheet */
+const SHEET_USER_MAPPING = "User mapping";
+/** Range for the schedule (update as needed for new rows) */
+const RANGE_SCHEDULE = `${SHEET_DAILY_SCHEDULE}!B5:D30`;
+/** Range for the slots for grabs sheet */
+const RANGE_SLOTS = SHEET_SLOTS_FOR_GRABS;
+/** Range for the user mapping sheet */
+const RANGE_USER_MAPPING = `${SHEET_USER_MAPPING}!A2:C`;
+/** The starting row for the schedule (for C column updates) */
+const SCHEDULE_START_ROW = 5;
+
 import { google } from "googleapis";
 
 export async function getGoogleSheetsClient() {
@@ -9,27 +25,33 @@ export async function getGoogleSheetsClient() {
   }
   const auth = new google.auth.JWT({
     email,
-    key: key.replace(/\\n/g, "\n"),
+    key: key.replace(/\n/g, "\n"),
     scopes: ["https://www.googleapis.com/auth/spreadsheets"],
   });
   await auth.authorize();
   return google.sheets({ version: "v4", auth });
 }
 
-export async function getSchedule(range = "Daily schedule!B5:C28") {
+/**
+ * Fetches the schedule from the Google Sheet.
+ */
+export async function getSchedule() {
   const sheets = await getGoogleSheetsClient();
   const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
-  const res = await sheets.spreadsheets.values.get({ spreadsheetId, range });
+  const res = await sheets.spreadsheets.values.get({ spreadsheetId, range: RANGE_SCHEDULE });
   return res.data.values;
 }
 
+/**
+ * Fetches the user mapping from the Google Sheet.
+ */
 export async function getUserMapping() {
   const sheets = await getGoogleSheetsClient();
   const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
   // Read all rows from A2:C (skip header)
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: 'User mapping!A2:C',
+    range: RANGE_USER_MAPPING,
   });
   const values = res.data.values || [];
   // Convert to mapping: { [playerName]: { email, color } }
@@ -46,10 +68,9 @@ export async function offerSlotForGrabs({ date, time, player }: { date: string; 
   const sheets = await getGoogleSheetsClient();
   const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
   const now = new Date().toISOString();
-  // New columns: Date, Time, Player, Status, SwapRequested, RequestedDate, RequestedTime, ClaimedBy, Timestamp
   await sheets.spreadsheets.values.append({
     spreadsheetId,
-    range: 'Slots for grabs',
+    range: RANGE_SLOTS,
     valueInputOption: 'USER_ENTERED',
     insertDataOption: 'INSERT_ROWS',
     requestBody: {
@@ -63,10 +84,9 @@ export async function requestSlotSwap({ date, time, player, requestedDate, reque
   const sheets = await getGoogleSheetsClient();
   const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
   const now = new Date().toISOString();
-  // New columns: Date, Time, Player, Status, SwapRequested, RequestedDate, RequestedTime, ClaimedBy, Timestamp
   await sheets.spreadsheets.values.append({
     spreadsheetId,
-    range: 'Slots for grabs',
+    range: RANGE_SLOTS,
     valueInputOption: 'USER_ENTERED',
     insertDataOption: 'INSERT_ROWS',
     requestBody: {
@@ -82,7 +102,7 @@ export async function claimSlot({ date, time, player, claimer }: { date: string;
   // Read all rows to find the first matching slot
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: 'Slots for grabs',
+    range: RANGE_SLOTS,
   });
   const values = res.data.values || [];
   // Find header row and data rows
@@ -94,22 +114,21 @@ export async function claimSlot({ date, time, player, claimer }: { date: string;
   if (idx === -1) throw new Error('Slot not found or already claimed');
   const rowNumber = idx + 2; // +2 for 1-based index and header
   const now = new Date().toISOString();
-  // Update Status (D), ClaimedBy (H), Timestamp (I)
   await sheets.spreadsheets.values.batchUpdate({
     spreadsheetId,
     requestBody: {
       valueInputOption: 'USER_ENTERED',
       data: [
         {
-          range: `Slots for grabs!D${rowNumber}`,
+          range: `${SHEET_SLOTS_FOR_GRABS}!D${rowNumber}`,
           values: [['claimed']],
         },
         {
-          range: `Slots for grabs!H${rowNumber}`,
+          range: `${SHEET_SLOTS_FOR_GRABS}!H${rowNumber}`,
           values: [[claimer]],
         },
         {
-          range: `Slots for grabs!I${rowNumber}`,
+          range: `${SHEET_SLOTS_FOR_GRABS}!I${rowNumber}`,
           values: [[now]],
         },
       ],
@@ -117,11 +136,9 @@ export async function claimSlot({ date, time, player, claimer }: { date: string;
   });
 
   // --- Update Daily schedule sheet ---
-  // Fetch the relevant range (B5:C28)
-  const scheduleRange = 'Daily schedule!B5:C30';
   const scheduleRes = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: scheduleRange,
+    range: RANGE_SCHEDULE,
   });
   const scheduleRows = scheduleRes.data.values || [];
 
@@ -150,7 +167,7 @@ export async function claimSlot({ date, time, player, claimer }: { date: string;
       // Write back the updated player list
       await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `Daily schedule!C${i + 5}`,
+        range: `${SHEET_DAILY_SCHEDULE}!C${i + SCHEDULE_START_ROW}`,
         valueInputOption: 'USER_ENTERED',
         requestBody: {
           values: [[players.join(', ')]],
@@ -171,7 +188,7 @@ export async function retractSlot({ date, time, player }: { date: string; time: 
   // Read all rows to find the first matching slot
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: 'Slots for grabs',
+    range: RANGE_SLOTS,
   });
   const values = res.data.values || [];
   // Find header row and data rows
@@ -183,22 +200,21 @@ export async function retractSlot({ date, time, player }: { date: string; time: 
   if (idx === -1) throw new Error('Slot not found or not offered');
   const rowNumber = idx + 2; // +2 for 1-based index and header
   const now = new Date().toISOString();
-  // Update Status (D), ClaimedBy (H), Timestamp (I)
   await sheets.spreadsheets.values.batchUpdate({
     spreadsheetId,
     requestBody: {
       valueInputOption: 'USER_ENTERED',
       data: [
         {
-          range: `Slots for grabs!D${rowNumber}`,
+          range: `${SHEET_SLOTS_FOR_GRABS}!D${rowNumber}`,
           values: [['retracted']],
         },
         {
-          range: `Slots for grabs!H${rowNumber}`,
+          range: `${SHEET_SLOTS_FOR_GRABS}!H${rowNumber}`,
           values: [['']],
         },
         {
-          range: `Slots for grabs!I${rowNumber}`,
+          range: `${SHEET_SLOTS_FOR_GRABS}!I${rowNumber}`,
           values: [[now]],
         },
       ],
@@ -212,7 +228,7 @@ export async function getAvailableSlots() {
   const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: 'Slots for grabs',
+    range: RANGE_SLOTS,
   });
   const values = res.data.values || [];
   const header = values[0];
@@ -230,7 +246,7 @@ export async function getAllSlots() {
   const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: 'Slots for grabs',
+    range: RANGE_SLOTS,
   });
   const values = res.data.values || [];
   const header = values[0];
@@ -248,7 +264,7 @@ export async function acceptSlotSwap({ date, time, player, requestedDate, reques
   // Find the swap request row
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: 'Slots for grabs',
+    range: RANGE_SLOTS,
   });
   const values = res.data.values || [];
   const header = values[0];
@@ -271,19 +287,18 @@ export async function acceptSlotSwap({ date, time, player, requestedDate, reques
     requestBody: {
       valueInputOption: 'USER_ENTERED',
       data: [
-        { range: `Slots for grabs!D${rowNumber}`, values: [['claimed']] },
-        { range: `Slots for grabs!H${rowNumber}`, values: [[acceptingPlayer]] },
-        { range: `Slots for grabs!I${rowNumber}`, values: [[now]] },
+        { range: `${SHEET_SLOTS_FOR_GRABS}!D${rowNumber}`, values: [['claimed']] },
+        { range: `${SHEET_SLOTS_FOR_GRABS}!H${rowNumber}`, values: [[acceptingPlayer]] },
+        { range: `${SHEET_SLOTS_FOR_GRABS}!I${rowNumber}`, values: [[now]] },
       ],
     },
   });
 
   // --- Swap players in Daily schedule sheet ---
   // Fetch the relevant range (B5:C28)
-  const scheduleRange = 'Daily schedule!B5:C28';
   const scheduleRes = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: scheduleRange,
+    range: RANGE_SCHEDULE,
   });
   const scheduleRows = scheduleRes.data.values || [];
 
@@ -332,13 +347,13 @@ export async function acceptSlotSwap({ date, time, player, requestedDate, reques
   // Write back the updated player lists
   await sheets.spreadsheets.values.update({
     spreadsheetId,
-    range: `Daily schedule!C${offerRowIdx + 5}`,
+    range: `${SHEET_DAILY_SCHEDULE}!C${offerRowIdx + SCHEDULE_START_ROW}`,
     valueInputOption: 'USER_ENTERED',
     requestBody: { values: [[offerPlayers.join(', ')]] },
   });
   await sheets.spreadsheets.values.update({
     spreadsheetId,
-    range: `Daily schedule!C${requestRowIdx + 5}`,
+    range: `${SHEET_DAILY_SCHEDULE}!C${requestRowIdx + SCHEDULE_START_ROW}`,
     valueInputOption: 'USER_ENTERED',
     requestBody: { values: [[requestPlayers.join(', ')]] },
   });
