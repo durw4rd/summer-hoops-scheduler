@@ -79,7 +79,9 @@ export default function ScheduleCard({
           <CardTitle className="text-lg flex items-center gap-2">
             {game.day} ({game.date})
             {game.date === '20.08' && (
-              <span className="ml-2 px-3 py-1 rounded-full bg-yellow-400 text-yellow-900 font-bold text-xs border border-yellow-600 animate-pulse">�� Tournament</span>
+              <span className="ml-2 px-3 py-1 rounded-full bg-yellow-400 text-yellow-900 font-bold text-xs border border-yellow-600 flex items-center gap-1 animate-pulse">
+                <span role="img" aria-label="trophy">🏆</span> Tournament
+              </span>
             )}
           </CardTitle>
         </div>
