@@ -99,6 +99,53 @@ export async function requestSlotSwap({ date, time, player, requestedDate, reque
 export async function claimSlot({ date, time, player, claimer }: { date: string; time: string; player: string; claimer: string }) {
   const sheets = await getGoogleSheetsClient();
   const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
+  const now = new Date().toISOString();
+
+  // If claiming a free spot (not an offered slot), just add an entry to Slots for grabs
+  if (player === 'free spot') {
+    await sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: RANGE_SLOTS,
+      valueInputOption: 'USER_ENTERED',
+      insertDataOption: 'INSERT_ROWS',
+      requestBody: {
+        values: [[date, time, 'free spot', 'claimed', 'no', '', '', claimer, now]],
+      },
+    });
+    // Also update the Daily schedule sheet to add the claimer to the session's player list
+    const scheduleRes = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: RANGE_SCHEDULE,
+    });
+    const scheduleRows = scheduleRes.data.values || [];
+    // Helper to parse session details from column B
+    function parseSessionDetails(details: string) {
+      // Format: 'DD.MM / weekDay / HH:MM - HH:MM'
+      const [datePart, , timePart] = details.split(' / ');
+      return { date: datePart.trim(), time: timePart.trim() };
+    }
+    for (let i = 0; i < scheduleRows.length; i++) {
+      const [details, playerList] = scheduleRows[i];
+      if (!details) continue;
+      const { date: rowDate, time: rowTime } = parseSessionDetails(details);
+      if (rowDate === date && rowTime === time) {
+        // Append the claimer to the player list
+        let players = (playerList || '').split(',').map((p: string) => p.trim()).filter(Boolean);
+        players.push(claimer);
+        await sheets.spreadsheets.values.update({
+          spreadsheetId,
+          range: `${SHEET_DAILY_SCHEDULE}!C${i + SCHEDULE_START_ROW}`,
+          valueInputOption: 'USER_ENTERED',
+          requestBody: {
+            values: [[players.join(', ')]],
+          },
+        });
+        break;
+      }
+    }
+    return { success: true };
+  }
+
   // Read all rows to find the first matching slot
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId,
@@ -113,7 +160,6 @@ export async function claimSlot({ date, time, player, claimer }: { date: string;
   );
   if (idx === -1) throw new Error('Slot not found or already claimed');
   const rowNumber = idx + 2; // +2 for 1-based index and header
-  const now = new Date().toISOString();
   await sheets.spreadsheets.values.batchUpdate({
     spreadsheetId,
     requestBody: {

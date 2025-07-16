@@ -20,6 +20,7 @@ interface ScheduleTabProps {
   setShowAll: (v: (prev: boolean) => boolean) => void;
   setShowPast: (v: (prev: boolean) => boolean) => void;
   loggedInUser: any;
+  onClaimAvailableSlot?: (info: { date: string; time: string }) => void;
 }
 
 const ScheduleTab: React.FC<ScheduleTabProps> = ({
@@ -38,6 +39,7 @@ const ScheduleTab: React.FC<ScheduleTabProps> = ({
   setShowAll,
   setShowPast,
   loggedInUser,
+  onClaimAvailableSlot,
 }) => {
   const [reassignModalOpen, setReassignModalOpen] = useState(false);
   const [reassignSession, setReassignSession] = useState<{ date: string; time: string; currentPlayer: string } | null>(null);
@@ -155,6 +157,7 @@ const ScheduleTab: React.FC<ScheduleTabProps> = ({
                     handleOfferSlot={handleOfferSlot}
                     handleRequestSwap={handleRequestSwap}
                     onReassignClick={handleReassignClick}
+                    onClaimAvailableSlot={onClaimAvailableSlot}
                   />
                 ))
               )}

@@ -36,6 +36,7 @@ interface ScheduleCardProps {
   handleOfferSlot: (date: string, time: string, player: string, sessionId: string) => void;
   handleRequestSwap: (slot: any) => void;
   onReassignClick?: (sessionInfo: { date: string; time: string; currentPlayer: string }) => void;
+  onClaimAvailableSlot?: (info: { date: string; time: string }) => void;
 }
 
 function normalizeDate(date: string) {
@@ -66,6 +67,7 @@ export default function ScheduleCard({
   handleOfferSlot,
   handleRequestSwap,
   onReassignClick,
+  onClaimAvailableSlot,
 }: ScheduleCardProps) {
   return (
     <Card key={game.id} className="border-l-4 border-l-orange-500">
@@ -233,6 +235,17 @@ export default function ScheduleCard({
                     </Button>
                   )}
                 </div>
+              )}
+              {/* Claim available slot button for non-participants if session is not full */}
+              {playerName && !isUserParticipant && session.players.length < session.maxPlayers && (
+                <Button
+                  size="sm"
+                  variant="default"
+                  className="mt-2"
+                  onClick={() => onClaimAvailableSlot && onClaimAvailableSlot({ date: game.date, time: session.time })}
+                >
+                  Claim available slot
+                </Button>
               )}
             </div>
           );

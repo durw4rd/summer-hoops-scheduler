@@ -78,16 +78,18 @@ export default function SummerHoopsScheduler() {
       .filter((game: any) => game.sessions.length > 0);
   }
 
-  // 3. Filter the schedule to only show sessions where the player is scheduled
+  // 3. Filter the schedule to only show sessions where the player is scheduled or can claim a spot
   const filteredSchedule = playerName
     ? schedule
-      .map((game: any) => ({
-        ...game,
-        sessions: game.sessions.filter((session: any) =>
-          session.players.some((p: string) => p.toLowerCase() === playerName!.toLowerCase())
-        ),
-      }))
-      .filter((game: any) => game.sessions.length > 0)
+        .map((game: any) => ({
+          ...game,
+          sessions: game.sessions.filter((session: any) => {
+            const isAttending = session.players.some((p: string) => p.toLowerCase() === playerName!.toLowerCase());
+            const hasAvailableSlot = session.players.length < session.maxPlayers;
+            return isAttending || (!isAttending && hasAvailableSlot);
+          }),
+        }))
+        .filter((game: any) => game.sessions.length > 0)
     : [];
 
   // 5. Choose which schedule to display, then filter by upcoming
@@ -196,15 +198,16 @@ export default function SummerHoopsScheduler() {
       await fetch("/api/slots", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date, time, player, claimer }),
+        body: JSON.stringify({ date, time, player: player || 'free spot', claimer }),
       });
-      // Refresh available slots
+      // Refresh available slots and schedule
       const res = await fetch("/api/slots");
       const json = await res.json();
       if (json.slots) {
         setAvailableSlots(json.slots.filter((slot: any) => slot.Status === 'offered'));
         setAllSlots(json.slots);
       }
+      await fetchSchedule();
     } finally {
       setSlotActionLoading(null);
     }
@@ -312,7 +315,7 @@ export default function SummerHoopsScheduler() {
     const rows = isHeader ? raw.slice(1) : raw;
     const scheduleMap: Record<string, any> = {};
     rows.forEach((row) => {
-      const [dateTime, playersStr] = row;
+      const [dateTime, playersStr, maxPlayersStr] = row;
       if (!dateTime) return;
       const [datePart, day, time] = dateTime.split(" / ").map((s: string) => s.trim());
       const dateKey = `${datePart} / ${day}`;
@@ -324,12 +327,14 @@ export default function SummerHoopsScheduler() {
           sessions: [],
         };
       }
+      let maxPlayers = parseInt(maxPlayersStr, 10);
+      if (isNaN(maxPlayers)) maxPlayers = 10;
       scheduleMap[dateKey].sessions.push({
         id: `${dateKey}-${time}`,
         time,
         hour: time,
         players: playersStr ? playersStr.split(",").map((p: string) => p.trim()) : [],
-        maxPlayers: 10,
+        maxPlayers,
       });
     });
     return Object.values(scheduleMap);
@@ -374,6 +379,17 @@ export default function SummerHoopsScheduler() {
       type: 'claim',
       alreadyInSession: isUserInSession,
       claimSessionId,
+    });
+  }
+
+  // Handler for claiming an available slot from the session card
+  function handleClaimAvailableSlot({ date, time }: { date: string; time: string }) {
+    setConfirmationModal({
+      open: true,
+      slot: { Date: date, Time: time },
+      type: 'claim',
+      alreadyInSession: false,
+      claimSessionId: `${date}-${time}-available`,
     });
   }
 
@@ -431,6 +447,7 @@ export default function SummerHoopsScheduler() {
                 setShowAll={setShowAll}
                 setShowPast={setShowPast}
                 loggedInUser={loggedInUser}
+                onClaimAvailableSlot={handleClaimAvailableSlot}
               />
             </TabsContent>
             <TabsContent value="available" className="space-y-4">
