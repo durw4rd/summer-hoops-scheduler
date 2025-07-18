@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import SessionProviderWrapper from '@/components/SessionProviderWrapper'
+import LaunchDarklyProvider from '@/components/LaunchDarklyProvider'
 
 export const metadata: Metadata = {
   title: 'Summer Hoops Scheduler',
@@ -20,7 +21,9 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <SessionProviderWrapper>
-          {children}
+          <LaunchDarklyProvider>
+            {children}
+          </LaunchDarklyProvider>
         </SessionProviderWrapper>
       </body>
     </html>

@@ -3,18 +3,22 @@
 import { useState, useEffect } from "react"
 import { useSession, signIn, signOut } from "next-auth/react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Calendar, Gift } from "lucide-react"
+import { Calendar, Gift, Flag } from "lucide-react"
 import Header from "@/components/Header";
 import SwapModal from "@/components/SwapModal";
 import ClaimConfirmationModal from "@/components/ClaimConfirmationModal";
 import ScheduleTab from "@/components/ScheduleTab";
 import AvailableSlotsTab from "@/components/AvailableSlotsTab";
 import RegisterPrompt from "@/components/RegisterPrompt";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import FeatureFlagExample from "@/components/FeatureFlagExample";
+import ReactiveFlagTest from "@/components/ReactiveFlagTest";
 import TournamentSplash from "@/components/TournamentSplash";
+import { useLaunchDarkly } from "@/hooks/useLaunchDarkly";
 
 export default function SummerHoopsScheduler() {
   const { data: session } = useSession();
+  const { getFlagValue } = useLaunchDarkly();
+  const showFlagsTab = getFlagValue('showFlagsTab', false);
   const [schedule, setSchedule] = useState<any[]>([])
   const [userMapping, setUserMapping] = useState<Record<string, { email: string; color?: string }>>({})
   const [showAll, setShowAll] = useState(false);
@@ -24,6 +28,7 @@ export default function SummerHoopsScheduler() {
   const [slotActionLoading, setSlotActionLoading] = useState<string | null>(null); // sessionId for which action is loading
   const [activeTab, setActiveTab] = useState<string>("schedule");
   const [scheduleLoading, setScheduleLoading] = useState(true);
+  const [scheduleTabLoading, setScheduleTabLoading] = useState(false);
   const [slotsLoading, setSlotsLoading] = useState(true);
   const [showInactiveSlots, setShowInactiveSlots] = useState(false);
   const [acceptSwapLoading, setAcceptSwapLoading] = useState<string | null>(null);
@@ -109,7 +114,10 @@ export default function SummerHoopsScheduler() {
   async function fetchSchedule() {
     try {
       setScheduleLoading(true);
-      setUserMappingLoading(true);
+      // Only set userMappingLoading if it's not already loaded
+      if (!Object.keys(userMapping).length) {
+        setUserMappingLoading(true);
+      }
       const res = await fetch("/api/schedule");
       const json = await res.json();
       if (json.data) {
@@ -123,6 +131,25 @@ export default function SummerHoopsScheduler() {
     } finally {
       setScheduleLoading(false);
       setUserMappingLoading(false);
+    }
+  }
+
+  // Separate function for tab-specific schedule refresh
+  async function refreshScheduleForTab(): Promise<void> {
+    try {
+      setScheduleTabLoading(true);
+      const res = await fetch("/api/schedule");
+      const json = await res.json();
+      if (json.data) {
+        setSchedule(parseScheduleData(json.data));
+      }
+      if (json.userMapping) {
+        setUserMapping(json.userMapping);
+      }
+    } catch (e) {
+      // Optionally handle error
+    } finally {
+      setScheduleTabLoading(false);
     }
   }
 
@@ -175,7 +202,7 @@ export default function SummerHoopsScheduler() {
     if (tab === "available") {
       fetchAvailableSlots();
     } else if (tab === "schedule") {
-      fetchSchedule();
+      refreshScheduleForTab();
     }
   }
 
@@ -443,7 +470,7 @@ export default function SummerHoopsScheduler() {
           <RegisterPrompt email={loggedInUser.email || ""} onRegister={handleRegister} />
         ) : (
           <Tabs defaultValue="schedule" className="w-full" onValueChange={handleTabChange}>
-            <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsList className={`grid w-full mb-6 ${showFlagsTab ? 'grid-cols-3' : 'grid-cols-2'}`}>
               <TabsTrigger value="schedule" className="flex items-center space-x-2">
                 <Calendar className="w-4 h-4" />
                 <span>Schedule</span>
@@ -452,6 +479,12 @@ export default function SummerHoopsScheduler() {
                 <Gift className="w-4 h-4" />
                 <span>Available Slots</span>
               </TabsTrigger>
+              {showFlagsTab && (
+                <TabsTrigger value="flags" className="flex items-center space-x-2">
+                  <Flag className="w-4 h-4" />
+                  <span>Feature Flags</span>
+                </TabsTrigger>
+              )}
             </TabsList>
             <TabsContent value="schedule" className="space-y-4">
               <ScheduleTab
@@ -465,12 +498,14 @@ export default function SummerHoopsScheduler() {
                 handleOfferSlot={handleOfferSlot}
                 handleRequestSwap={handleRequestSwap}
                 scheduleLoading={scheduleLoading}
+                scheduleTabLoading={scheduleTabLoading}
                 showAll={showAll}
                 showPast={showPast}
                 setShowAll={setShowAll}
                 setShowPast={setShowPast}
                 loggedInUser={loggedInUser}
                 onClaimAvailableSlot={handleClaimAvailableSlot}
+                onScheduleRefresh={refreshScheduleForTab}
               />
             </TabsContent>
             <TabsContent value="available" className="space-y-4">
@@ -497,6 +532,14 @@ export default function SummerHoopsScheduler() {
                 loggedInUser={loggedInUser}
               />
             </TabsContent>
+            {showFlagsTab && (
+              <TabsContent value="flags" className="space-y-4">
+                <div className="grid gap-4">
+                  <FeatureFlagExample />
+                  <ReactiveFlagTest />
+                </div>
+              </TabsContent>
+            )}
           </Tabs>
         )}
       </div>

@@ -15,12 +15,14 @@ interface ScheduleTabProps {
   handleOfferSlot: (date: string, time: string, player: string, sessionId: string) => void;
   handleRequestSwap: (slot: any) => void;
   scheduleLoading: boolean;
+  scheduleTabLoading?: boolean;
   showAll: boolean;
   showPast: boolean;
   setShowAll: (v: (prev: boolean) => boolean) => void;
   setShowPast: (v: (prev: boolean) => boolean) => void;
   loggedInUser: any;
   onClaimAvailableSlot?: (info: { date: string; time: string }) => void;
+  onScheduleRefresh?: () => Promise<void>;
 }
 
 const ScheduleTab: React.FC<ScheduleTabProps> = ({
@@ -34,12 +36,14 @@ const ScheduleTab: React.FC<ScheduleTabProps> = ({
   handleOfferSlot,
   handleRequestSwap,
   scheduleLoading,
+  scheduleTabLoading = false,
   showAll,
   showPast,
   setShowAll,
   setShowPast,
   loggedInUser,
   onClaimAvailableSlot,
+  onScheduleRefresh,
 }) => {
   const [reassignModalOpen, setReassignModalOpen] = useState(false);
   const [reassignSession, setReassignSession] = useState<{ date: string; time: string; currentPlayer: string } | null>(null);
@@ -103,7 +107,10 @@ const ScheduleTab: React.FC<ScheduleTabProps> = ({
       setReassignConfirm(false);
       setReassignWarn(false);
       await new Promise(r => setTimeout(r, 300)); // UX: allow modal to close
-      window.location.reload(); // or call fetchSchedule() if available
+      // Refresh schedule data after successful reassignment
+      if (onScheduleRefresh) {
+        await onScheduleRefresh();
+      }
     } catch (err: any) {
       setReassignError(err.message || "Reassignment failed");
     } finally {
@@ -138,8 +145,10 @@ const ScheduleTab: React.FC<ScheduleTabProps> = ({
               {showPast ? "Hide Past Sessions" : "Show Past Sessions"}
             </Button>
           </div>
-          {scheduleLoading ? (
-            <div className="text-center text-gray-500 py-10">Loading schedule...</div>
+          {(scheduleLoading || scheduleTabLoading) ? (
+            <div className="text-center text-gray-500 py-10">
+              {scheduleTabLoading ? "Refreshing schedule..." : "Loading schedule..."}
+            </div>
           ) : (
             <>
               {scheduleToDisplay.length === 0 ? (
