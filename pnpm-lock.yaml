@@ -11,6 +11,12 @@ importers:
       '@hookform/resolvers':
         specifier: ^3.9.1
         version: 3.10.0(react-hook-form@7.60.0(react@19.1.0))
+      '@launchdarkly/observability':
+        specifier: ^0.3.7
+        version: 0.3.7
+      '@launchdarkly/session-replay':
+        specifier: ^0.3.7
+        version: 0.3.7
       '@radix-ui/react-accordion':
         specifier: 1.2.2
         version: 1.2.2(@types/react-dom@19.1.6(@types/react@19.1.8))(@types/react@19.1.8)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -338,6 +344,21 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.29':
     resolution: {integrity: sha512-uw6guiW/gcAGPDhLmd77/6lW8QLeiV5RUTsAX46Db6oLhGaVj4lhnPwb184s1bkc8kdVg/+h988dro8GRDpmYQ==}
+
+  '@launchdarkly/js-client-sdk-common@1.13.0':
+    resolution: {integrity: sha512-3u3nWLKfu7ADbrBlbYq1rDROXG1WcRGRGhHFyAjtDPCCh783sPIb1frC1n4tj6b64bustVrZvLR9dGrQlp6tJQ==}
+
+  '@launchdarkly/js-client-sdk@0.6.0':
+    resolution: {integrity: sha512-9aBgpGKXxaiPudNuQ9MoS8wFSIR1h0P2EFDP2veNJG7tBuxzDKfH3hzjW01C4/WyWN6bk7P7XKwisxw775klBQ==}
+
+  '@launchdarkly/js-sdk-common@2.17.0':
+    resolution: {integrity: sha512-HYQNc4xbE58hBOO1yZsqE+BHOC36AYrHPZ5hwvlHoZRSsaoYCPM+Q/n+O+N3JhWXTqGsu6SwUzqUzTyxg8prGg==}
+
+  '@launchdarkly/observability@0.3.7':
+    resolution: {integrity: sha512-UG+TsMhBZq2hclwTUgOP1E+z8V89vHdjsbjpqNOW0vYnJxExsb7rDnwOOalMAmUoE5556cpPGahZ4R/RmJ4WIA==}
+
+  '@launchdarkly/session-replay@0.3.7':
+    resolution: {integrity: sha512-IVsL/VSifc+XUURTSEi8BBbyhC3AVHcuNEa7YhDZ5EMzDKVP9pCrQrKYi7xMNCGyao78ZXlwJscZd01oJBYVRA==}
 
   '@next/env@15.2.4':
     resolution: {integrity: sha512-+SFtMgoiYP3WoSswuNmxJOCwi06TdWE733D+WPjpXIe4LXGULwEaofiiAy6kbS0+XjM5xF5n3lKuBwN2SnqD9g==}
@@ -1493,6 +1514,9 @@ packages:
     resolution: {integrity: sha512-0hJU9SCPvmMzIBdZFqNPXWa6dqh7WdH0cII9y+CyS8rG3nL48Bclra9HmKhVVUHyPWNH5Y7xDwAB7bfgSjkUMQ==}
     engines: {node: '>= 0.4'}
 
+  highlight.run@9.18.22:
+    resolution: {integrity: sha512-uYPJU0i6ESQJmrzm1POiLlsRBGDJ6IsQHGYxJ0bYucZDMDV92iGGmeeKEOmRsBy04fXPLvIsbj8AVaJv2O8H1Q==}
+
   hoist-non-react-statics@3.3.2:
     resolution: {integrity: sha512-/gGivxi8JPKWNm/W0jSmzcMPpfpPLc3dY/6GxhX2hQ9iGj3aDfklV4ET7NjKpSinLpJ5vafa9iiGIEZg10SfBw==}
 
@@ -2266,6 +2290,24 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.4
+
+  '@launchdarkly/js-client-sdk-common@1.13.0':
+    dependencies:
+      '@launchdarkly/js-sdk-common': 2.17.0
+
+  '@launchdarkly/js-client-sdk@0.6.0':
+    dependencies:
+      '@launchdarkly/js-client-sdk-common': 1.13.0
+
+  '@launchdarkly/js-sdk-common@2.17.0': {}
+
+  '@launchdarkly/observability@0.3.7':
+    dependencies:
+      highlight.run: 9.18.22
+
+  '@launchdarkly/session-replay@0.3.7':
+    dependencies:
+      highlight.run: 9.18.22
 
   '@next/env@15.2.4': {}
 
@@ -3433,6 +3475,10 @@ snapshots:
   hasown@2.0.2:
     dependencies:
       function-bind: 1.1.2
+
+  highlight.run@9.18.22:
+    dependencies:
+      '@launchdarkly/js-client-sdk': 0.6.0
 
   hoist-non-react-statics@3.3.2:
     dependencies:

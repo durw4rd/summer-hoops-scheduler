@@ -1,6 +1,8 @@
 "use client";
 
 import { asyncWithLDProvider } from 'launchdarkly-react-client-sdk';
+import Observability from '@launchdarkly/observability';
+import SessionReplay from '@launchdarkly/session-replay';
 import { ReactNode, useEffect, useState } from 'react';
 
 // Generate a unique session ID for this browser session
@@ -52,6 +54,18 @@ function LaunchDarklyProviderContent({ children }: LaunchDarklyProviderProps) {
                 id: 'summer-hoops-app',
                 version: '1.16.0',
             },
+            plugins: [
+                new Observability({
+                  networkRecording: {
+                    enabled: true,
+                    recordHeadersAndBody: true
+                  }
+                }),
+                new SessionReplay({
+                  // Defaults to no obfuscation - see https://launchdarkly.com/docs/sdk/features/client-side-observability#privacy for more details
+                  privacySetting: 'none'
+                })
+              ]
             // Optional: Add any additional configuration here
           },
           reactOptions: {},
