@@ -1,8 +1,9 @@
 import { Button } from "@/components/ui/button";
 import ScheduleCard from "@/components/ScheduleCard";
-import { Switch } from "@/components/ui/switch";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import ReassignSlotModal from "@/components/ReassignSlotModal";
+import FilterBar, { FilterItem } from "@/components/ui/filter-bar";
+import { getStorageKey, saveToStorage, loadFromStorage } from "@/lib/persistence";
 
 interface ScheduleTabProps {
   scheduleToDisplay: any[];
@@ -52,6 +53,52 @@ const ScheduleTab: React.FC<ScheduleTabProps> = ({
   const [reassignSelectedPlayer, setReassignSelectedPlayer] = useState<string>("");
   const [reassignConfirm, setReassignConfirm] = useState(false);
   const [reassignWarn, setReassignWarn] = useState(false);
+
+  // Track if component has mounted to prevent hydration mismatches
+  const [hasMounted, setHasMounted] = useState(false);
+
+  // Set mounted state after hydration
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
+  // Load saved filter states on component mount (client-side only)
+  useEffect(() => {
+    if (hasMounted && loggedInUser?.user?.email) {
+      const userId = loggedInUser.user.email;
+      
+      // Load showAll filter
+      const showAllKey = getStorageKey(userId, 'schedule', 'showAll');
+      const savedShowAll = loadFromStorage(showAllKey, false);
+      setShowAll(() => savedShowAll);
+      
+      // Load showPast filter
+      const showPastKey = getStorageKey(userId, 'schedule', 'showPast');
+      const savedShowPast = loadFromStorage(showPastKey, false);
+      setShowPast(() => savedShowPast);
+      
+      // Load condensedMode filter
+      const condensedModeKey = getStorageKey(userId, 'schedule', 'condensedMode');
+      const savedCondensedMode = loadFromStorage(condensedModeKey, false);
+      setCondensedMode(savedCondensedMode);
+    }
+  }, [hasMounted, loggedInUser?.user?.email, setShowAll, setShowPast, setCondensedMode]);
+
+  // Save filter states when they change (client-side only)
+  useEffect(() => {
+    if (hasMounted && loggedInUser?.user?.email) {
+      const userId = loggedInUser.user.email;
+      
+      const showAllKey = getStorageKey(userId, 'schedule', 'showAll');
+      saveToStorage(showAllKey, showAll);
+      
+      const showPastKey = getStorageKey(userId, 'schedule', 'showPast');
+      saveToStorage(showPastKey, showPast);
+      
+      const condensedModeKey = getStorageKey(userId, 'schedule', 'condensedMode');
+      saveToStorage(condensedModeKey, condensedMode);
+    }
+  }, [hasMounted, showAll, showPast, condensedMode, loggedInUser?.user?.email]);
 
   function handleReassignClick(sessionInfo: { date: string; time: string; currentPlayer: string }) {
     setReassignSession(sessionInfo);
@@ -118,33 +165,54 @@ const ScheduleTab: React.FC<ScheduleTabProps> = ({
     }
   }
 
+  // Create filter items for the FilterBar
+  const filterItems: FilterItem[] = [
+    {
+      id: 'showAll',
+      type: 'toggle',
+      label: 'Show All Sessions',
+      value: showAll,
+    },
+    {
+      id: 'showPast',
+      type: 'toggle',
+      label: 'Show Past Sessions',
+      value: showPast,
+    },
+    {
+      id: 'condensedMode',
+      type: 'toggle',
+      label: 'Condensed View',
+      value: condensedMode,
+    },
+  ];
+
+  const handleFilterChange = (filterId: string, value: any) => {
+    switch (filterId) {
+      case 'showAll':
+        setShowAll(() => value);
+        break;
+      case 'showPast':
+        setShowPast(() => value);
+        break;
+      case 'condensedMode':
+        setCondensedMode(value);
+        break;
+    }
+  };
+
   return (
     <>
       {loggedInUser ? (
         <>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-900">{showAll ? "All Games" : "Your Games"}</h2>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">Condensed</span>
-              <Switch checked={condensedMode} onCheckedChange={setCondensedMode} />
-            </div>
-          </div>
-          <div className="flex flex-col sm:flex-row justify-end gap-2 mb-4">
-            <Button
-              size="sm"
-              variant={showAll ? "default" : "outline"}
-              onClick={() => setShowAll((v) => !v)}
-            >
-              {showAll ? "Show Only My Sessions" : "Show All Sessions"}
-            </Button>
-            <Button
-              size="sm"
-              variant={showPast ? "default" : "outline"}
-              onClick={() => setShowPast((v) => !v)}
-            >
-              {showPast ? "Hide Past Sessions" : "Show Past Sessions"}
-            </Button>
-          </div>
+          {/* <div className="mb-2"> */}
+            <FilterBar
+              title="Schedule Filters"
+              filters={filterItems}
+              onFilterChange={handleFilterChange}
+              isExpanded={false}
+            />
+          {/* </div> */}
           {(scheduleLoading || scheduleTabLoading) ? (
             <div className="text-center text-gray-500 py-10">
               {scheduleTabLoading ? "Refreshing schedule..." : "Loading schedule..."}

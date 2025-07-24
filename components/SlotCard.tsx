@@ -24,6 +24,88 @@ interface SlotCardProps {
   onClaimClick: (slot: any, claimSessionId: string) => void;
 }
 
+// Utility function to get comprehensive status information
+const getStatusInfo = (slot: any) => {
+  switch (slot.Status) {
+    case 'offered':
+      if (slot.SwapRequested === 'yes') {
+        return { 
+          badge: 'Swap Offer', 
+          color: 'blue', 
+          details: null,
+          borderColor: 'border-l-blue-400'
+        };
+      } else {
+        return { 
+          badge: 'Up For Grabs', 
+          color: 'yellow', 
+          details: null,
+          borderColor: 'border-l-yellow-400'
+        };
+      }
+    case 'claimed':
+      return { 
+        badge: 'Claimed', 
+        color: 'green', 
+        details: slot.ClaimedBy ? `by ${slot.ClaimedBy}` : null,
+        borderColor: 'border-l-green-400'
+      };
+    case 'retracted':
+      return { 
+        badge: 'Retracted', 
+        color: 'gray', 
+        details: null,
+        borderColor: 'border-l-gray-400'
+      };
+    case 'reassigned':
+      return { 
+        badge: 'Reassigned', 
+        color: 'blue', 
+        details: slot.ClaimedBy ? `to ${slot.ClaimedBy}` : null,
+        borderColor: 'border-l-blue-400'
+      };
+    default:
+      return { 
+        badge: slot.Status || 'Unknown', 
+        color: 'gray', 
+        details: null,
+        borderColor: 'border-l-gray-400'
+      };
+  }
+};
+
+// Utility function to format timestamp
+const formatTimestamp = (timestamp: string) => {
+  if (!timestamp) return null;
+  try {
+    const date = new Date(timestamp);
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch {
+    return null;
+  }
+};
+
+// Utility function to get badge color classes
+const getBadgeColorClasses = (color: string) => {
+  switch (color) {
+    case 'yellow':
+      return 'bg-yellow-200 text-yellow-900';
+    case 'green':
+      return 'bg-green-200 text-green-900';
+    case 'blue':
+      return 'bg-blue-200 text-blue-900';
+    case 'gray':
+      return 'bg-gray-200 text-gray-900';
+    default:
+      return 'bg-gray-200 text-gray-900';
+  }
+};
+
 export default function SlotCard({
   slot,
   idx,
@@ -41,34 +123,34 @@ export default function SlotCard({
   acceptSwapEligible,
   onClaimClick,
 }: SlotCardProps) {
+  const statusInfo = getStatusInfo(slot);
+  const formattedTimestamp = formatTimestamp(slot.Timestamp);
+
   return (
     <Card
       key={idx}
-      className={`border-l-4 ${slot.Status === 'offered' ? '' : slot.Status === 'claimed' ? 'border-l-green-400' : 'border-l-gray-400'}`}
+      className={`border-l-4 ${slot.Status === 'offered' ? '' : statusInfo.borderColor}`}
       style={slot.Status === 'offered' ? {
         borderLeftColor: getPlayerColor(slot.Player),
         background: `linear-gradient(90deg, ${getPlayerColor(slot.Player)}11 0%, transparent 100%)` // subtle tint
       } : {}}
     >
-      <CardHeader className="pb-2 flex flex-row items-center justify-between">
+      <CardHeader className="pb-2 flex flex-row items-start justify-between">
         <CardTitle className="text-md flex items-center gap-2">
           <span>{slot.Date}</span>
           <span className="text-gray-400">({getDayOfWeek(slot.Date)})</span>
           <span className="text-gray-400">/</span>
           <span>{slot.Time}</span>
         </CardTitle>
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-1 items-end">
           {isOwner && slot.Status === 'offered' && (
             <Badge className="bg-yellow-200 text-yellow-900">Your Slot</Badge>
           )}
-          {slot.Status === 'claimed' && (
-            <Badge className="bg-green-200 text-green-900">Claimed</Badge>
-          )}
-          {slot.Status === 'retracted' && (
-            <Badge className="bg-gray-200 text-gray-900">Retracted</Badge>
-          )}
-          {/* Only show 'Already in!' badge if user is in the session and it's not their own offer */}
-          {!isOwner && isUserInSession && (
+          <Badge className={getBadgeColorClasses(statusInfo.color)}>
+            {statusInfo.badge}
+          </Badge>
+          {/* Only show 'Already in!' badge if user is in the session, it's not their own offer, and the slot is still offered */}
+          {!isOwner && isUserInSession && slot.Status === 'offered' && (
             <Badge className="bg-orange-500 text-white">Already in!</Badge>
           )}
         </div>
@@ -88,16 +170,33 @@ export default function SlotCard({
             {isOwner ? "You" : slot.Player.split(" ")[0]}
           </span>
         </div>
+        
+        {/* Status details section */}
+        {statusInfo.details && (
+          <div className="text-xs text-gray-600 mt-1">
+            {statusInfo.details}
+          </div>
+        )}
+        
+        {/* Timestamp information */}
+        {formattedTimestamp && (
+          <div className="text-xs text-gray-500 mt-1">
+            Last updated: {formattedTimestamp}
+          </div>
+        )}
+        
+        {/* Swap offer information */}
         {slot.SwapRequested === 'yes' ? (
           <div className="flex flex-col gap-1 mb-2">
-            <Badge className="bg-blue-200 text-blue-900">Swap Offer</Badge>
             <div className="text-xs text-blue-900">
               Wants to swap for: <b>{slot.RequestedDate} / {slot.RequestedTime}</b>
             </div>
           </div>
-        ) : (
+        ) : slot.Status === 'offered' && (
           <Badge className="bg-yellow-200 text-yellow-900 mb-2">Up For Grabs</Badge>
         )}
+        
+        {/* Action buttons for owners */}
         {isOwner && slot.Status !== 'offered' && slot.SwapRequested !== 'yes' && (
           <div className="flex gap-2">
             <Button
@@ -116,6 +215,8 @@ export default function SlotCard({
             </Button>
           </div>
         )}
+        
+        {/* Recall button for owners */}
         {isOwner && slot.Status === 'offered' && (
           <Button
             size="sm"
@@ -126,11 +227,7 @@ export default function SlotCard({
             {slotActionLoading === `recall-${idx}` ? "Recalling..." : "Recall Slot"}
           </Button>
         )}
-        {slot.Status === 'claimed' && slot.ClaimedBy && (
-          <div className="text-xs text-green-700 mt-1">
-            Claimed by: <span className="font-semibold">{slot.ClaimedBy}</span>
-          </div>
-        )}
+        
         {/* For swap requests, show Accept Swap button if user is eligible */}
         {slot.SwapRequested === 'yes' && slot.Status === 'offered' && acceptSwapEligible && (
           <Button
@@ -142,7 +239,8 @@ export default function SlotCard({
             {acceptSwapLoading === `${slot.Date}-${slot.Time}-${slot.Player}` ? 'Accepting...' : 'Accept swap'}
           </Button>
         )}
-        {/* Claim button for non-owners, always visible, modal will warn if already in session */}
+        
+        {/* Claim button for non-owners, only for offered slots */}
         {!isOwner && slot.Status === 'offered' && slot.SwapRequested !== 'yes' && (
           <Button
             size="sm"

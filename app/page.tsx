@@ -3,16 +3,17 @@
 import { useState, useEffect, useCallback } from "react"
 import { useSession, signIn, signOut } from "next-auth/react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Calendar, Gift, Flag } from "lucide-react"
+import { Calendar, Store, Flag } from "lucide-react"
 import Header from "@/components/Header";
 import SwapModal from "@/components/SwapModal";
 import ClaimConfirmationModal from "@/components/ClaimConfirmationModal";
 import ScheduleTab from "@/components/ScheduleTab";
-import AvailableSlotsTab from "@/components/AvailableSlotsTab";
+import MarketplaceTab from "@/components/MarketplaceTab";
 import RegisterPrompt from "@/components/RegisterPrompt";
 import LaunchDarklyDebug from "@/components/LaunchDarklyDebug";
 import TournamentSplash from "@/components/TournamentSplash";
 import { useLaunchDarkly } from "@/hooks/useLaunchDarkly";
+import { getStorageKey, saveToStorage, loadFromStorage } from "@/lib/persistence";
 
 // Types for better type safety
 interface ScheduleData {
@@ -88,6 +89,15 @@ export default function SummerHoopsScheduler() {
   const [showTournamentSplash, setShowTournamentSplash] = useState(false);
   const [tournamentSplashOptOut, setTournamentSplashOptOut] = useState(false);
 
+  // Tab state persistence
+  const [isTabStateLoaded, setIsTabStateLoaded] = useState(false);
+  const [hasMounted, setHasMounted] = useState(false);
+
+  // Set mounted state after hydration
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
   // Data fetching functions
   const fetchSchedule = useCallback(async (): Promise<void> => {
     try {
@@ -127,7 +137,7 @@ export default function SummerHoopsScheduler() {
     }
   };
 
-  const fetchAvailableSlots = async (): Promise<void> => {
+  const fetchMarketplaceData = async (): Promise<void> => {
     try {
       setSlotsLoading(true);
       const res = await fetch("/api/slots");
@@ -137,7 +147,7 @@ export default function SummerHoopsScheduler() {
         setAllSlots(json.slots);
       }
     } catch (error) {
-      console.error('Failed to fetch available slots:', error);
+      console.error('Failed to fetch marketplace data:', error);
     } finally {
       setSlotsLoading(false);
     }
@@ -146,8 +156,16 @@ export default function SummerHoopsScheduler() {
   // Event handlers
   const handleTabChange = (tab: string): void => {
     setActiveTab(tab);
+    
+    // Save tab state to localStorage (client-side only)
+    if (hasMounted && session?.user?.email) {
+      const userId = session.user.email;
+      const tabKey = getStorageKey(userId, 'tab', 'active');
+      saveToStorage(tabKey, tab);
+    }
+    
     if (tab === "available") {
-      fetchAvailableSlots();
+      fetchMarketplaceData();
     } else if (tab === "schedule") {
       refreshScheduleForTab();
     }
@@ -161,7 +179,7 @@ export default function SummerHoopsScheduler() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ date, time, player }),
       });
-      await Promise.all([fetchAvailableSlots(), fetchSchedule()]);
+      await Promise.all([fetchMarketplaceData(), fetchSchedule()]);
     } finally {
       setSlotActionLoading(null);
     }
@@ -195,7 +213,7 @@ export default function SummerHoopsScheduler() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ date, time, player }),
       });
-      await fetchAvailableSlots();
+      await fetchMarketplaceData();
     } finally {
       setSlotActionLoading(null);
     }
@@ -227,7 +245,7 @@ export default function SummerHoopsScheduler() {
       setSwapModalOpen(false);
       setSwapSourceSlot("");
       setSwapTarget("");
-      fetchAvailableSlots();
+      fetchMarketplaceData();
     } finally {
       setSwapLoading(false);
     }
@@ -379,6 +397,25 @@ export default function SummerHoopsScheduler() {
     }
   }, []);
 
+  // Load saved tab state when user is authenticated (client-side only)
+  useEffect(() => {
+    if (hasMounted && status === "authenticated" && session?.user?.email && !isTabStateLoaded) {
+      const userId = session.user.email;
+      const tabKey = getStorageKey(userId, 'tab', 'active');
+      const savedTab = loadFromStorage(tabKey, 'schedule');
+      
+      // Validate that the saved tab is still available
+      const validTabs = ['schedule', 'available'];
+      if (showFlagsTab) {
+        validTabs.push('flags');
+      }
+      
+      const finalTab = validTabs.includes(savedTab) ? savedTab : 'schedule';
+      setActiveTab(finalTab);
+      setIsTabStateLoaded(true);
+    }
+  }, [hasMounted, status, session, isTabStateLoaded, showFlagsTab]);
+
   useEffect(() => {
     if (status === "authenticated" && session) {
       fetchSchedule();
@@ -387,7 +424,7 @@ export default function SummerHoopsScheduler() {
 
   useEffect(() => {
     if (status === "authenticated" && session) {
-      fetchAvailableSlots();
+      fetchMarketplaceData();
     }
   }, [status, session]);
 
@@ -425,168 +462,173 @@ export default function SummerHoopsScheduler() {
     );
   }
 
-  // Early return for loading state
-  if (userMappingLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50">
-        <Header session={session} onSignIn={() => signIn("google")} onSignOut={signOut} userMapping={userMapping} />
-        <div className="max-w-md mx-auto px-4 py-6">
-          <div className="text-center text-gray-500 py-10">Loading...</div>
-        </div>
-      </div>
-    );
-  }
-
-  // Early return for unregistered users
-  if (!isRegistered && session) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50">
-        <Header session={session} onSignIn={() => signIn("google")} onSignOut={signOut} userMapping={userMapping} />
-        <div className="max-w-md mx-auto px-4 py-6">
-          <RegisterPrompt email={session.user?.email || ""} onRegister={handleRegister} />
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50">
       <Header session={session} onSignIn={() => signIn("google")} onSignOut={signOut} userMapping={userMapping} />
 
-      <div className="max-w-md mx-auto px-4 py-6">
-        <Tabs defaultValue="schedule" className="w-full" onValueChange={handleTabChange}>
-          <TabsList className={`grid w-full mb-6 ${showFlagsTab ? 'grid-cols-3' : 'grid-cols-2'}`}>
-            <TabsTrigger value="schedule" className="flex items-center space-x-2">
-              <Calendar className="w-4 h-4" />
-              <span>Schedule</span>
-            </TabsTrigger>
-            <TabsTrigger value="available" className="flex items-center space-x-2">
-              <Gift className="w-4 h-4" />
-              <span>Available Slots</span>
-            </TabsTrigger>
-            {showFlagsTab && (
-              <TabsTrigger value="flags" className="flex items-center space-x-2">
-                <Flag className="w-4 h-4" />
-                <span>Feature Flags</span>
-              </TabsTrigger>
+      {/* Tab Navigation - Always visible when authenticated */}
+      {session && (
+        <div className="bg-white border-b border-orange-100 shadow-sm">
+          <div className="max-w-md mx-auto px-4 py-3">
+            <Tabs value={activeTab} className="w-full" onValueChange={handleTabChange}>
+              <TabsList className={`grid w-full ${showFlagsTab ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                <TabsTrigger value="schedule" className="flex items-center space-x-2">
+                  <Calendar className="w-4 h-4" />
+                  <span>Schedule</span>
+                </TabsTrigger>
+                <TabsTrigger value="available" className="flex items-center space-x-2">
+                  <Store className="w-4 h-4" />
+                  <span>Marketplace</span>
+                </TabsTrigger>
+                {showFlagsTab && (
+                  <TabsTrigger value="flags" className="flex items-center space-x-2">
+                    <Flag className="w-4 h-4" />
+                    <span>Feature Flags</span>
+                  </TabsTrigger>
+                )}
+              </TabsList>
+            </Tabs>
+          </div>
+        </div>
+      )}
+
+      {/* Main Content Area */}
+      <div className="max-w-md mx-auto px-4 py-3">
+        <Tabs value={activeTab} className="w-full" onValueChange={handleTabChange}>
+          <TabsContent value="schedule" className="space-y-2">
+            {userMappingLoading ? (
+              <div className="text-center text-gray-500 py-10">Loading...</div>
+            ) : !isRegistered && session ? (
+              <RegisterPrompt email={session.user?.email || ""} onRegister={handleRegister} />
+            ) : (
+              <ScheduleTab
+                scheduleToDisplay={scheduleToDisplay}
+                userMapping={userMapping}
+                playerName={playerName}
+                allSlots={allSlots}
+                condensedMode={condensedMode}
+                setCondensedMode={setCondensedMode}
+                slotActionLoading={slotActionLoading}
+                handleOfferSlot={handleOfferSlot}
+                handleRequestSwap={handleRequestSwap}
+                scheduleLoading={scheduleLoading}
+                scheduleTabLoading={scheduleTabLoading}
+                showAll={showAll}
+                showPast={showPast}
+                setShowAll={setShowAll}
+                setShowPast={setShowPast}
+                loggedInUser={session}
+                onClaimAvailableSlot={({ date, time }) => {
+                  setConfirmationModal({
+                    open: true,
+                    slot: { Date: date, Time: time },
+                    type: 'claim',
+                    alreadyInSession: false,
+                    claimSessionId: `${date}-${time}-available`,
+                  });
+                }}
+                onScheduleRefresh={refreshScheduleForTab}
+              />
             )}
-          </TabsList>
-          
-          <TabsContent value="schedule" className="space-y-4">
-            <ScheduleTab
-              scheduleToDisplay={scheduleToDisplay}
-              userMapping={userMapping}
-              playerName={playerName}
-              allSlots={allSlots}
-              condensedMode={condensedMode}
-              setCondensedMode={setCondensedMode}
-              slotActionLoading={slotActionLoading}
-              handleOfferSlot={handleOfferSlot}
-              handleRequestSwap={handleRequestSwap}
-              scheduleLoading={scheduleLoading}
-              scheduleTabLoading={scheduleTabLoading}
-              showAll={showAll}
-              showPast={showPast}
-              setShowAll={setShowAll}
-              setShowPast={setShowPast}
-              loggedInUser={session}
-              onClaimAvailableSlot={({ date, time }) => {
-                setConfirmationModal({
-                  open: true,
-                  slot: { Date: date, Time: time },
-                  type: 'claim',
-                  alreadyInSession: false,
-                  claimSessionId: `${date}-${time}-available`,
-                });
-              }}
-              onScheduleRefresh={refreshScheduleForTab}
-            />
           </TabsContent>
           
-          <TabsContent value="available" className="space-y-4">
-            <AvailableSlotsTab
-              allSlots={allSlots}
-              availableSlots={availableSlots}
-              playerName={playerName}
-              schedule={schedule}
-              userMapping={userMapping}
-              slotActionLoading={slotActionLoading}
-              acceptSwapLoading={acceptSwapLoading}
-              handleRecallSlot={handleRecallSlot}
-              handleAcceptSwap={(swapSlot) => {
-                let isUserInOfferingSession = false;
-                for (const game of schedule) {
-                  if (normalizeDate(game.date) === normalizeDate(swapSlot.Date)) {
-                    for (const session of game.sessions) {
-                      if (session.time.trim() === swapSlot.Time.trim()) {
-                        if (session.players.some((p: string) => p.toLowerCase() === playerName!.toLowerCase())) {
-                          isUserInOfferingSession = true;
-                        }
-                      }
-                    }
-                  }
-                }
-                setConfirmationModal({
-                  open: true,
-                  slot: swapSlot,
-                  type: 'swap',
-                  alreadyInSession: isUserInOfferingSession,
-                });
-              }}
-              handleOfferSlot={handleOfferSlot}
-              handleRequestSwap={handleRequestSwap}
-              showInactiveSlots={showInactiveSlots}
-              setShowInactiveSlots={setShowInactiveSlots}
-              showOnlyMine={showOnlyMine}
-              setShowOnlyMine={setShowOnlyMine}
-              slotsLoading={slotsLoading}
-              getPlayerColor={getPlayerColor}
-              isEligibleForSwap={(slot) => {
-                if (!playerName) return false;
-                for (const game of schedule) {
-                  if (game.date === slot.RequestedDate) {
-                    for (const session of game.sessions) {
-                      if (session.time === slot.RequestedTime) {
-                        return session.players.some((p: string) => p.toLowerCase() === playerName.toLowerCase());
-                      }
-                    }
-                  }
-                }
-                return false;
-              }}
-              onClaimClick={(slot, claimSessionId) => {
-                let isUserInSession = false;
-                if (playerName) {
+          <TabsContent value="available" className="space-y-2">
+            {userMappingLoading ? (
+              <div className="text-center text-gray-500 py-10">Loading...</div>
+            ) : !isRegistered && session ? (
+              <RegisterPrompt email={session.user?.email || ""} onRegister={handleRegister} />
+            ) : (
+              <MarketplaceTab
+                allSlots={allSlots}
+                availableSlots={availableSlots}
+                playerName={playerName}
+                schedule={schedule}
+                userMapping={userMapping}
+                slotActionLoading={slotActionLoading}
+                acceptSwapLoading={acceptSwapLoading}
+                handleRecallSlot={handleRecallSlot}
+                handleAcceptSwap={(swapSlot) => {
+                  let isUserInOfferingSession = false;
                   for (const game of schedule) {
-                    if (normalizeDate(game.date) === normalizeDate(slot.Date)) {
+                    if (normalizeDate(game.date) === normalizeDate(swapSlot.Date)) {
                       for (const session of game.sessions) {
-                        if (session.time.trim() === slot.Time.trim()) {
-                          if (session.players.some((p: string) => p.toLowerCase() === playerName.toLowerCase())) {
-                            isUserInSession = true;
+                        if (session.time.trim() === swapSlot.Time.trim()) {
+                          if (session.players.some((p: string) => p.toLowerCase() === playerName!.toLowerCase())) {
+                            isUserInOfferingSession = true;
                           }
                         }
                       }
                     }
                   }
-                }
-                setConfirmationModal({
-                  open: true,
-                  slot,
-                  type: 'claim',
-                  alreadyInSession: isUserInSession,
-                  claimSessionId,
-                });
-              }}
-              loggedInUser={session}
-            />
+                  setConfirmationModal({
+                    open: true,
+                    slot: swapSlot,
+                    type: 'swap',
+                    alreadyInSession: isUserInOfferingSession,
+                  });
+                }}
+                handleOfferSlot={handleOfferSlot}
+                handleRequestSwap={handleRequestSwap}
+                showInactiveSlots={showInactiveSlots}
+                setShowInactiveSlots={setShowInactiveSlots}
+                showOnlyMine={showOnlyMine}
+                setShowOnlyMine={setShowOnlyMine}
+                slotsLoading={slotsLoading}
+                getPlayerColor={getPlayerColor}
+                isEligibleForSwap={(slot) => {
+                  if (!playerName) return false;
+                  for (const game of schedule) {
+                    if (game.date === slot.RequestedDate) {
+                      for (const session of game.sessions) {
+                        if (session.time === slot.RequestedTime) {
+                          return session.players.some((p: string) => p.toLowerCase() === playerName.toLowerCase());
+                        }
+                      }
+                    }
+                  }
+                  return false;
+                }}
+                onClaimClick={(slot, claimSessionId) => {
+                  let isUserInSession = false;
+                  if (playerName) {
+                    for (const game of schedule) {
+                      if (normalizeDate(game.date) === normalizeDate(slot.Date)) {
+                        for (const session of game.sessions) {
+                          if (session.time.trim() === slot.Time.trim()) {
+                            if (session.players.some((p: string) => p.toLowerCase() === playerName.toLowerCase())) {
+                              isUserInSession = true;
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                  setConfirmationModal({
+                    open: true,
+                    slot,
+                    type: 'claim',
+                    alreadyInSession: isUserInSession,
+                    claimSessionId,
+                  });
+                }}
+                loggedInUser={session}
+              />
+            )}
           </TabsContent>
           
           {showFlagsTab && (
             <TabsContent value="flags" className="space-y-4">
-              <LaunchDarklyDebug />
+              {userMappingLoading ? (
+                <div className="text-center text-gray-500 py-10">Loading...</div>
+              ) : !isRegistered && session ? (
+                <RegisterPrompt email={session.user?.email || ""} onRegister={handleRegister} />
+              ) : (
+                <LaunchDarklyDebug />
+              )}
             </TabsContent>
           )}
         </Tabs>
+      </div>
 
         {/* Modals */}
         <SwapModal
@@ -633,7 +675,7 @@ export default function SummerHoopsScheduler() {
                     acceptingPlayer: playerName,
                   }),
                 });
-                await fetchAvailableSlots();
+                await fetchMarketplaceData();
               } finally {
                 setAcceptSwapLoading(null);
               }
@@ -653,6 +695,5 @@ export default function SummerHoopsScheduler() {
           }}
         />
       </div>
-    </div>
   );
 }
