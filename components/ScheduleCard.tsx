@@ -6,6 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { useState } from "react";
 // Remove icon imports
 // import { Gift, Repeat, UserPlus } from "lucide-react";
+import { getOptimizedProfileImage, handleProfileImageError } from "@/lib/utils";
 
 interface Session {
   id: string;
@@ -174,8 +175,8 @@ export default function ScheduleCard({
                           >
                             <Avatar className="w-4 h-4">
                               <AvatarImage
-                                src={`/profile-${playerId.replace(/\s+/g, "").toLowerCase()}.png`}
-                                onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/profile-default.png"; }}
+                                src={getOptimizedProfileImage(playerId)}
+                                onError={(e) => handleProfileImageError(e, playerId)}
                               />
                               <AvatarFallback className="text-xs">
                                 {playerId

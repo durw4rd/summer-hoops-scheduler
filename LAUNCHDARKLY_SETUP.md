@@ -39,10 +39,12 @@ The LaunchDarkly context uses a multi-context structure:
   - **Key**: User's email address
   - **Name**: User's display name or email
   - **Email**: User's email address
+  - **Device Type**: `'mobile'` or `'desktop'` (automatically detected)
   - **Anonymous**: `false`
 - **Anonymous Users**:
   - **Key**: `'anonymous'`
   - **Name**: `'Anonymous User'`
+  - **Device Type**: `'mobile'` or `'desktop'` (automatically detected)
   - **Anonymous**: `true`
 
 ### Usage
@@ -106,6 +108,7 @@ function MyComponent() {
 ## Features
 
 - **Automatic User Context**: Uses NextAuth session data to identify users
+- **Device Type Detection**: Automatically detects mobile vs desktop devices
 - **Anonymous Fallback**: Provides anonymous context for unauthenticated users
 - **Error Handling**: Graceful fallback if LaunchDarkly initialization fails
 - **Type Safety**: Full TypeScript support with helper functions

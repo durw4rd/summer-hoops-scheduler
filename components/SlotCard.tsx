@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useMemo } from "react";
 import { getDayOfWeek } from "@/lib/utils";
+import { getOptimizedProfileImage, handleProfileImageError } from "@/lib/utils";
 
 interface SlotCardProps {
   slot: any;
@@ -76,8 +77,8 @@ export default function SlotCard({
         <div className="flex items-center gap-2">
           <Avatar className="w-6 h-6">
             <AvatarImage
-              src={`/profile-${slot.Player.replace(/\s+/g, "").toLowerCase()}.png`}
-              onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/profile-default.png"; }}
+              src={getOptimizedProfileImage(slot.Player)}
+              onError={(e) => handleProfileImageError(e, slot.Player)}
             />
             <AvatarFallback className="text-xs">
               {slot.Player.split(" ").map((n: string) => n[0]).join("")}

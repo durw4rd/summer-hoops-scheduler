@@ -1,20 +1,22 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { getOptimizedProfileImageForUser, handleProfileImageError } from "@/lib/utils";
 
 interface HeaderProps {
   session: any;
   onSignIn: () => void;
   onSignOut: () => void;
+  userMapping?: Record<string, { email: string; color?: string }>;
 }
 
-export default function Header({ session, onSignIn, onSignOut }: HeaderProps) {
+export default function Header({ session, onSignIn, onSignOut, userMapping }: HeaderProps) {
   const loggedInUser = session?.user;
   return (
     <div className="bg-white border-b border-orange-200 sticky top-0 z-50">
       <div className="max-w-md mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <img src="/summerHoopsLogo.png" alt="Summer Hoops Logo" className="w-12 h-12 rounded-full" />
+            <img src="/optimized/summerHoopsLogo.png" alt="Summer Hoops Logo" className="w-12 h-12 rounded-full" />
             <div>
               <h1
                 className="text-2xl font-extrabold bg-gradient-to-r from-[#4CAF50] via-[#FFD600] to-[#FB8C00] bg-clip-text text-transparent drop-shadow-sm"
@@ -31,7 +33,11 @@ export default function Header({ session, onSignIn, onSignOut }: HeaderProps) {
             {loggedInUser ? (
               <>
                 <Avatar className="w-8 h-8">
-                  <AvatarImage src={loggedInUser.image || "/profile-default.png"} alt={loggedInUser.name || "User"} onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/profile-default.png"; }} />
+                  <AvatarImage 
+                    src={getOptimizedProfileImageForUser(loggedInUser.email, userMapping || {})} 
+                    alt={loggedInUser.name || "User"} 
+                    onError={(e) => handleProfileImageError(e)} 
+                  />
                   <AvatarFallback>
                     {loggedInUser.name
                       ?.split(" ")

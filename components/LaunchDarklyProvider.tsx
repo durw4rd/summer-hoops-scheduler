@@ -4,6 +4,7 @@ import { asyncWithLDProvider } from 'launchdarkly-react-client-sdk';
 import Observability from '@launchdarkly/observability';
 import SessionReplay from '@launchdarkly/session-replay';
 import { ReactNode, useEffect, useState } from 'react';
+import { getDeviceType, detectBrowser, shouldOptimizeForPerformance } from '@/lib/utils';
 
 // Generate a unique session ID for this browser session
 const generateSessionId = () => {
@@ -31,6 +32,16 @@ function LaunchDarklyProviderContent({ children }: LaunchDarklyProviderProps) {
     const initializeLD = async () => {
       try {
         const sessionId = generateSessionId();
+        const { isBrave } = detectBrowser();
+        const shouldOptimize = shouldOptimizeForPerformance();
+        
+        // Log browser detection for debugging
+        if (isBrave) {
+          console.log('LaunchDarkly: Detected Brave browser, disabling session replay for performance');
+        }
+        if (shouldOptimize && !isBrave) {
+          console.log('LaunchDarkly: Detected performance optimization needed');
+        }
         
         // Initialize with basic context - the hook will update it dynamically
         const context = {
@@ -41,6 +52,7 @@ function LaunchDarklyProviderContent({ children }: LaunchDarklyProviderProps) {
           user: {
             key: 'anonymous',
             name: 'Anonymous User',
+            deviceType: getDeviceType(),
           }
         };
 
@@ -62,8 +74,7 @@ function LaunchDarklyProviderContent({ children }: LaunchDarklyProviderProps) {
                   }
                 }),
                 new SessionReplay({
-                  // Defaults to no obfuscation - see https://launchdarkly.com/docs/sdk/features/client-side-observability#privacy for more details
-                  privacySetting: 'none'
+                  privacySetting: 'default',
                 })
               ]
             // Optional: Add any additional configuration here
@@ -75,7 +86,7 @@ function LaunchDarklyProviderContent({ children }: LaunchDarklyProviderProps) {
 
         setLDProvider(() => provider);
       } catch (error) {
-        console.error('Failed to initialize LaunchDarkly:', error);
+        console.error('Failed to initialize LaunchDarkly:', error instanceof Error ? error.message : 'Unknown error');
         // Fallback: create a simple provider that just renders children
         setLDProvider(() => ({ children }: { children: ReactNode }) => <>{children}</>);
       } finally {
