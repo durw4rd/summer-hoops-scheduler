@@ -144,3 +144,11 @@ export function handleProfileImageError(event: React.SyntheticEvent<HTMLImageEle
     img.src = '/profile-default.png';
   }
 }
+
+// Shared date normalization function to ensure consistency across components
+export function normalizeDate(date: string): string {
+  if (!date) return '';
+  const [d, m] = date.split('.').map(Number);
+  if (isNaN(d) || isNaN(m)) return date.trim();
+  return `${d.toString().padStart(2, '0')}.${m.toString().padStart(2, '0')}`;
+}

@@ -14,6 +14,7 @@ import LaunchDarklyDebug from "@/components/LaunchDarklyDebug";
 import TournamentSplash from "@/components/TournamentSplash";
 import { useLaunchDarkly } from "@/hooks/useLaunchDarkly";
 import { getStorageKey, saveToStorage, loadFromStorage } from "@/lib/persistence";
+import { normalizeDate } from "@/lib/utils";
 
 // Types for better type safety
 interface ScheduleData {
@@ -264,19 +265,13 @@ export default function SummerHoopsScheduler() {
   };
 
   // Helper functions
-  const normalizeDate = (date: string): string => {
-    if (!date) return '';
-    const [d, m] = date.split('.').map(Number);
-    if (isNaN(d) || isNaN(m)) return date.trim();
-    return `${d.toString().padStart(2, '0')}.${m.toString().padStart(2, '0')}`;
-  };
-
+  const normalize = (v: string) => v.trim().toLowerCase();
+  
   const getSlotForSession = (date: string, time: string, player: string): SlotData | undefined => {
-    const normalize = (v: string) => v.trim().toLowerCase();
     return availableSlots.find(
       (slot) =>
         normalizeDate(slot.Date) === normalizeDate(date) &&
-        normalize(slot.Time) === normalize(time) &&
+        slot.Time.trim() === time.trim() &&
         normalize(slot.Player || '') === normalize(player) &&
         slot.Status === "offered"
     );
@@ -293,7 +288,7 @@ export default function SummerHoopsScheduler() {
         const sessionDate = new Date(now.getFullYear(), month - 1, day, Number(startHour));
         if (sessionDate < now) return;
         if (session.players.some((p: string) => p.toLowerCase() === playerName!.toLowerCase())) return;
-        const slotOffered = allSlots.find((slot: SlotData) => slot.Date === game.date && slot.Time === session.time && slot.Status === "offered");
+        const slotOffered = allSlots.find((slot: SlotData) => normalizeDate(slot.Date) === normalizeDate(game.date) && slot.Time.trim() === session.time.trim() && slot.Status === "offered");
         if (slotOffered) return;
         sessions.push({ Date: game.date, Time: session.time, Day: game.day });
       });
@@ -578,9 +573,9 @@ export default function SummerHoopsScheduler() {
                 isEligibleForSwap={(slot) => {
                   if (!playerName) return false;
                   for (const game of schedule) {
-                    if (game.date === slot.RequestedDate) {
+                    if (normalizeDate(game.date) === normalizeDate(slot.RequestedDate)) {
                       for (const session of game.sessions) {
-                        if (session.time === slot.RequestedTime) {
+                        if (session.time.trim() === slot.RequestedTime.trim()) {
                           return session.players.some((p: string) => p.toLowerCase() === playerName.toLowerCase());
                         }
                       }

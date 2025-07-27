@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import ReassignSlotModal from "@/components/ReassignSlotModal";
 import FilterBar, { FilterItem } from "@/components/ui/filter-bar";
 import { getStorageKey, saveToStorage, loadFromStorage } from "@/lib/persistence";
+import { normalizeDate } from "@/lib/utils";
 
 interface ScheduleTabProps {
   scheduleToDisplay: any[];
@@ -112,9 +113,9 @@ const ScheduleTab: React.FC<ScheduleTabProps> = ({
   // Helper to check if a player is already in the session
   function isPlayerInSession(date: string, time: string, player: string) {
     for (const game of scheduleToDisplay) {
-      if (game.date === date) {
+      if (normalizeDate(game.date) === normalizeDate(date)) {
         for (const session of game.sessions) {
-          if (session.time === time) {
+          if (session.time.trim() === time.trim()) {
             return session.players.some((p: string) => p.toLowerCase() === player.toLowerCase());
           }
         }

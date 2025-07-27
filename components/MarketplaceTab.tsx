@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import SlotCard from "@/components/SlotCard";
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import FilterBar, { FilterItem } from "@/components/ui/filter-bar";
-import { compareSlotsByDateTime, getDayOfWeek } from "@/lib/utils";
+import { compareSlotsByDateTime, getDayOfWeek, normalizeDate } from "@/lib/utils";
 import { getStorageKey, saveToStorage, loadFromStorage } from "@/lib/persistence";
 
 interface MarketplaceTabProps {
@@ -243,7 +243,7 @@ const MarketplaceTab: React.FC<MarketplaceTabProps> = ({
                       let isUserInSession = false;
                       if (playerName) {
                         for (const game of schedule) {
-                          if (game.date === slot.Date) {
+                          if (normalizeDate(game.date) === normalizeDate(slot.Date)) {
                             for (const session of game.sessions) {
                               if (session.time.trim() === slot.Time.trim()) {
                                 if (session.players.some((p: string) => p.toLowerCase() === playerName.toLowerCase())) {

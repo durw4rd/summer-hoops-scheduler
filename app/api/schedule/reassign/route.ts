@@ -1,15 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getGoogleSheetsClient } from "@/lib/googleSheets";
+import { normalizeDate } from "@/lib/utils";
 
 const SCHEDULE_SHEET = "Daily schedule";
 const SLOTS_SHEET = "Slots for grabs";
-
-function normalizeDate(dateStr: string) {
-  if (!dateStr) return '';
-  const [d, m] = dateStr.split('.').map(Number);
-  if (isNaN(d) || isNaN(m)) return dateStr.trim();
-  return `${d.toString().padStart(2, '0')}.${m.toString().padStart(2, '0')}`;
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -46,9 +40,13 @@ export async function POST(req: NextRequest) {
     if (sessionRowIdx === -1) {
       return NextResponse.json({ error: "Session not found in schedule." }, { status: 404 });
     }
-    // Remove fromPlayer, add toPlayer (even if already present)
-    players = players.filter(p => p.toLowerCase() !== fromPlayer.toLowerCase());
-    players.push(toPlayer); // Always add, even if already present
+    // Remove fromPlayer, add toPlayer (replace exactly one instance)
+    const playerIdx = players.findIndex(p => p.toLowerCase() === fromPlayer.toLowerCase());
+    if (playerIdx !== -1) {
+      players.splice(playerIdx, 1, toPlayer); // Replace exactly one instance
+    } else {
+      players.push(toPlayer); // If not found, just add
+    }
     // Write back the updated player list
     await sheets.spreadsheets.values.update({
       spreadsheetId,

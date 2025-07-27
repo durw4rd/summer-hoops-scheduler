@@ -6,7 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { useState } from "react";
 // Remove icon imports
 // import { Gift, Repeat, UserPlus } from "lucide-react";
-import { getOptimizedProfileImage, handleProfileImageError } from "@/lib/utils";
+import { getOptimizedProfileImage, handleProfileImageError, normalizeDate } from "@/lib/utils";
 
 interface Session {
   id: string;
@@ -38,13 +38,6 @@ interface ScheduleCardProps {
   handleRequestSwap: (slot: any) => void;
   onReassignClick?: (sessionInfo: { date: string; time: string; currentPlayer: string }) => void;
   onClaimAvailableSlot?: (info: { date: string; time: string }) => void;
-}
-
-function normalizeDate(date: string) {
-  if (!date) return '';
-  const [d, m] = date.split('.').map(Number);
-  if (isNaN(d) || isNaN(m)) return date.trim();
-  return `${d.toString().padStart(2, '0')}.${m.toString().padStart(2, '0')}`;
 }
 
 function getSlotForSession(availableSlots: any[], date: string, time: string, player: string) {
@@ -145,7 +138,7 @@ export default function ScheduleCard({
                   {/* Swap offers indicator */}
                   {swapOfferCount > 0 && (
                     <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-300">
-                      Swap Offers: {swapOfferCount}
+                      Swaps: {swapOfferCount}
                     </span>
                   )}
                   {/* Removed player count */}
