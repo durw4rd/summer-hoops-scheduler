@@ -7,9 +7,10 @@ interface HeaderProps {
   onSignIn: () => void;
   onSignOut: () => void;
   userMapping?: Record<string, { email: string; color?: string }>;
+  adminMode?: boolean;
 }
 
-export default function Header({ session, onSignIn, onSignOut, userMapping }: HeaderProps) {
+export default function Header({ session, onSignIn, onSignOut, userMapping, adminMode = false }: HeaderProps) {
   const loggedInUser = session?.user;
   return (
     <div className="bg-white border-b border-orange-200 sticky top-0 z-50">
@@ -26,6 +27,13 @@ export default function Header({ session, onSignIn, onSignOut, userMapping }: He
               </h1>
               {!loggedInUser && (
                 <p className="text-xs text-gray-500">Please log in</p>
+              )}
+              {adminMode && (
+                <div className="flex items-center space-x-1">
+                  <span className="text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded-full font-medium">
+                    🔧 Admin Mode
+                  </span>
+                </div>
               )}
             </div>
           </div>

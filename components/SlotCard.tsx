@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useMemo } from "react";
-import { getDayOfWeek } from "@/lib/utils";
+import { getDayOfWeek, isSessionInPast } from "@/lib/utils";
 import { getOptimizedProfileImage, handleProfileImageError } from "@/lib/utils";
 
 interface SlotCardProps {
@@ -64,6 +64,20 @@ const getStatusInfo = (slot: any) => {
         details: slot.ClaimedBy ? `to ${slot.ClaimedBy}` : null,
         borderColor: 'border-l-blue-400'
       };
+    case 'admin-reassigned':
+      return { 
+        badge: 'Admin Reassigned', 
+        color: 'red', 
+        details: slot.ClaimedBy ? `to ${slot.ClaimedBy}` : null,
+        borderColor: 'border-l-red-400'
+      };
+    case 'expired':
+      return { 
+        badge: 'Expired', 
+        color: 'gray', 
+        details: null,
+        borderColor: 'border-l-gray-400'
+      };
     default:
       return { 
         badge: slot.Status || 'Unknown', 
@@ -99,6 +113,8 @@ const getBadgeColorClasses = (color: string) => {
       return 'bg-green-200 text-green-900';
     case 'blue':
       return 'bg-blue-200 text-blue-900';
+    case 'red':
+      return 'bg-red-200 text-red-900';
     case 'gray':
       return 'bg-gray-200 text-gray-900';
     default:
@@ -133,6 +149,8 @@ export default function SlotCard({
       style={slot.Status === 'offered' ? {
         borderLeftColor: getPlayerColor(slot.Player),
         background: `linear-gradient(90deg, ${getPlayerColor(slot.Player)}11 0%, transparent 100%)` // subtle tint
+      } : slot.Status === 'admin-reassigned' ? {
+        background: `linear-gradient(90deg, #fee2e2 0%, transparent 100%)` // admin red tint
       } : {}}
     >
       <CardHeader className="pb-2 flex flex-row items-start justify-between">
@@ -197,7 +215,7 @@ export default function SlotCard({
         )}
         
         {/* Action buttons for owners */}
-        {isOwner && slot.Status !== 'offered' && slot.SwapRequested !== 'yes' && (
+        {isOwner && slot.Status !== 'offered' && slot.SwapRequested !== 'yes' && !isSessionInPast(slot.Date) && slot.Status !== 'expired' && (
           <div className="flex gap-2">
             <Button
               size="sm"
@@ -217,7 +235,7 @@ export default function SlotCard({
         )}
         
         {/* Recall button for owners */}
-        {isOwner && slot.Status === 'offered' && (
+        {isOwner && slot.Status === 'offered' && !isSessionInPast(slot.Date) && slot.Status !== 'expired' && (
           <Button
             size="sm"
             variant="destructive"
@@ -229,7 +247,7 @@ export default function SlotCard({
         )}
         
         {/* For swap requests, show Accept Swap button if user is eligible */}
-        {slot.SwapRequested === 'yes' && slot.Status === 'offered' && acceptSwapEligible && (
+        {slot.SwapRequested === 'yes' && slot.Status === 'offered' && acceptSwapEligible && !isSessionInPast(slot.Date) && slot.Status !== 'expired' && (
           <Button
             size="sm"
             variant="default"
@@ -241,7 +259,7 @@ export default function SlotCard({
         )}
         
         {/* Claim button for non-owners, only for offered slots */}
-        {!isOwner && slot.Status === 'offered' && slot.SwapRequested !== 'yes' && (
+        {!isOwner && slot.Status === 'offered' && slot.SwapRequested !== 'yes' && !isSessionInPast(slot.Date) && slot.Status !== 'expired' && (
           <Button
             size="sm"
             variant="default"

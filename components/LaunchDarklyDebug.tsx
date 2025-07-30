@@ -22,6 +22,7 @@ export default function LaunchDarklyDebug() {
 
   const detectedDeviceType = getDeviceType();
   const currentContext = client?.getContext();
+  const adminMode = getFlagValue('adminMode', false);
 
   return (
     <Card className="w-full max-w-2xl">
@@ -107,6 +108,48 @@ export default function LaunchDarklyDebug() {
             ) : (
               <p className="text-muted-foreground text-xs">No flags available</p>
             )}
+          </div>
+        </div>
+
+        {/* Admin Mode Status */}
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Flag className="w-5 h-5" />
+                  Feature Flags
+                </CardTitle>
+                <CardDescription>
+                  Current flag values and status
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">showFlagsTab:</span>
+                  <Badge variant={getFlagValue('showFlagsTab', false) ? "default" : "secondary"}>
+                    {getFlagValue('showFlagsTab', false) ? "ON" : "OFF"}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">adminMode:</span>
+                  <Badge variant={adminMode ? "default" : "secondary"}>
+                    {adminMode ? "ON" : "OFF"}
+                  </Badge>
+                </div>
+                {adminMode && (
+                  <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <div className="flex items-center gap-2 text-red-800">
+                      <span className="text-lg">🔧</span>
+                      <span className="text-sm font-medium">Admin Mode Active</span>
+                    </div>
+                    <p className="text-xs text-red-600 mt-1">
+                      You have admin privileges. Player badges will be clickable for reassignment.
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </div>
 

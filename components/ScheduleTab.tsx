@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import ScheduleCard from "@/components/ScheduleCard";
 import React, { useState, useEffect } from "react";
 import ReassignSlotModal from "@/components/ReassignSlotModal";
+import AdminReassignModal from "@/components/AdminReassignModal";
 import FilterBar, { FilterItem } from "@/components/ui/filter-bar";
 import { getStorageKey, saveToStorage, loadFromStorage } from "@/lib/persistence";
 import { normalizeDate } from "@/lib/utils";
@@ -25,6 +26,7 @@ interface ScheduleTabProps {
   loggedInUser: any;
   onClaimAvailableSlot?: (info: { date: string; time: string }) => void;
   onScheduleRefresh?: () => Promise<void>;
+  adminMode?: boolean;
 }
 
 const ScheduleTab: React.FC<ScheduleTabProps> = ({
@@ -46,6 +48,7 @@ const ScheduleTab: React.FC<ScheduleTabProps> = ({
   loggedInUser,
   onClaimAvailableSlot,
   onScheduleRefresh,
+  adminMode = false,
 }) => {
   const [reassignModalOpen, setReassignModalOpen] = useState(false);
   const [reassignSession, setReassignSession] = useState<{ date: string; time: string; currentPlayer: string } | null>(null);
@@ -54,6 +57,15 @@ const ScheduleTab: React.FC<ScheduleTabProps> = ({
   const [reassignSelectedPlayer, setReassignSelectedPlayer] = useState<string>("");
   const [reassignConfirm, setReassignConfirm] = useState(false);
   const [reassignWarn, setReassignWarn] = useState(false);
+
+  // Admin reassignment state
+  const [adminReassignModalOpen, setAdminReassignModalOpen] = useState(false);
+  const [adminReassignSession, setAdminReassignSession] = useState<{ date: string; time: string; currentPlayer: string } | null>(null);
+  const [adminReassignLoading, setAdminReassignLoading] = useState(false);
+  const [adminReassignError, setAdminReassignError] = useState<string | null>(null);
+  const [adminReassignSelectedPlayer, setAdminReassignSelectedPlayer] = useState<string>("");
+  const [adminReassignConfirm, setAdminReassignConfirm] = useState(false);
+  const [adminReassignWarn, setAdminReassignWarn] = useState(false);
 
   // Track if component has mounted to prevent hydration mismatches
   const [hasMounted, setHasMounted] = useState(false);
@@ -110,6 +122,15 @@ const ScheduleTab: React.FC<ScheduleTabProps> = ({
     setReassignError(null);
   }
 
+  function handleAdminReassignClick(sessionInfo: { date: string; time: string; currentPlayer: string }) {
+    setAdminReassignSession(sessionInfo);
+    setAdminReassignModalOpen(true);
+    setAdminReassignSelectedPlayer("");
+    setAdminReassignConfirm(false);
+    setAdminReassignWarn(false);
+    setAdminReassignError(null);
+  }
+
   // Helper to check if a player is already in the session
   function isPlayerInSession(date: string, time: string, player: string) {
     for (const game of scheduleToDisplay) {
@@ -163,6 +184,51 @@ const ScheduleTab: React.FC<ScheduleTabProps> = ({
       setReassignError(err.message || "Reassignment failed");
     } finally {
       setReassignLoading(false);
+    }
+  }
+
+  async function handleAdminReassign(newPlayer: string) {
+    if (!adminReassignSession) return;
+    setAdminReassignError(null);
+    setAdminReassignSelectedPlayer(newPlayer);
+    // Check if player is already in session
+    const alreadyInSession = isPlayerInSession(adminReassignSession.date, adminReassignSession.time, newPlayer);
+    if (alreadyInSession && !adminReassignConfirm) {
+      setAdminReassignWarn(true);
+      setAdminReassignConfirm(true);
+      return;
+    }
+    setAdminReassignLoading(true);
+    try {
+      const res = await fetch("/api/schedule/admin-reassign", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "x-user-email": loggedInUser?.user?.email || ""
+        },
+        body: JSON.stringify({
+          date: adminReassignSession.date,
+          time: adminReassignSession.time,
+          fromPlayer: adminReassignSession.currentPlayer,
+          toPlayer: newPlayer,
+        }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || "Admin reassignment failed");
+      setAdminReassignModalOpen(false);
+      setAdminReassignSession(null);
+      setAdminReassignSelectedPlayer("");
+      setAdminReassignConfirm(false);
+      setAdminReassignWarn(false);
+      await new Promise(r => setTimeout(r, 300)); // UX: allow modal to close
+      // Refresh schedule data after successful reassignment
+      if (onScheduleRefresh) {
+        await onScheduleRefresh();
+      }
+    } catch (err: any) {
+      setAdminReassignError(err.message || "Admin reassignment failed");
+    } finally {
+      setAdminReassignLoading(false);
     }
   }
 
@@ -236,6 +302,8 @@ const ScheduleTab: React.FC<ScheduleTabProps> = ({
                     handleRequestSwap={handleRequestSwap}
                     onReassignClick={handleReassignClick}
                     onClaimAvailableSlot={onClaimAvailableSlot}
+                    adminMode={adminMode}
+                    onAdminReassignClick={handleAdminReassignClick}
                   />
                 ))
               )}
@@ -259,6 +327,22 @@ const ScheduleTab: React.FC<ScheduleTabProps> = ({
           selectedPlayer={reassignSelectedPlayer}
           warn={reassignWarn}
           onConfirm={() => handleReassign(reassignSelectedPlayer)}
+          onPlayerSelect={(player) => setReassignSelectedPlayer(player)}
+        />
+      )}
+      {adminReassignSession && (
+        <AdminReassignModal
+          open={adminReassignModalOpen}
+          onOpenChange={setAdminReassignModalOpen}
+          sessionInfo={adminReassignSession}
+          userMapping={userMapping}
+          onAdminReassign={handleAdminReassign}
+          loading={adminReassignLoading}
+          error={adminReassignError}
+          selectedPlayer={adminReassignSelectedPlayer}
+          warn={adminReassignWarn}
+          onConfirm={() => handleAdminReassign(adminReassignSelectedPlayer)}
+          onPlayerSelect={(player) => setAdminReassignSelectedPlayer(player)}
         />
       )}
     </>

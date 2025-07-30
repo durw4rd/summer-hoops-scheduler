@@ -152,3 +152,28 @@ export function normalizeDate(date: string): string {
   if (isNaN(d) || isNaN(m)) return date.trim();
   return `${d.toString().padStart(2, '0')}.${m.toString().padStart(2, '0')}`;
 }
+
+export function isSessionInPast(date: string): boolean {
+  const [day, month] = date.split('.').map(Number);
+  const eventDate = new Date(new Date().getFullYear(), month - 1, day);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Reset time to start of day for comparison
+  return eventDate < today;
+}
+
+export function shouldSlotBeExpired(date: string, time: string): boolean {
+  const [day, month] = date.split('.').map(Number);
+  
+  // Handle time format: "HH:MM - HH:MM" - we need the end time
+  const endTime = time.split('-')[1].trim();
+  const [hours, minutes] = endTime.split(':').map(Number);
+  
+  // Create event date with end time
+  const eventDate = new Date(new Date().getFullYear(), month - 1, day, hours, minutes);
+  
+  // Add 1 hour to the event end time to determine when it should expire
+  const expiryDate = new Date(eventDate.getTime() + 60 * 60 * 1000);
+  
+  const now = new Date();
+  return now > expiryDate;
+}

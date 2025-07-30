@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import SlotCard from "@/components/SlotCard";
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import FilterBar, { FilterItem } from "@/components/ui/filter-bar";
-import { compareSlotsByDateTime, getDayOfWeek, normalizeDate } from "@/lib/utils";
+import { compareSlotsByDateTime, getDayOfWeek, normalizeDate, isSessionInPast, shouldSlotBeExpired } from "@/lib/utils";
 import { getStorageKey, saveToStorage, loadFromStorage } from "@/lib/persistence";
 
 interface MarketplaceTabProps {
@@ -52,7 +52,7 @@ const MarketplaceTab: React.FC<MarketplaceTabProps> = ({
 }) => {
   const [showAllActive, setShowAllActive] = useState(true); // default to true - show all active offers
   const [showMine, setShowMine] = useState(false); // default to false - don't show mine
-  const [showInactive, setShowInactive] = useState(false);
+  const [showInactive, setShowInactive] = useState(true); // default to true - show all slots including inactive ones
   const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set(['all']));
 
   const [hasMounted, setHasMounted] = useState(false);
@@ -81,7 +81,7 @@ const MarketplaceTab: React.FC<MarketplaceTabProps> = ({
       
       // Load showInactive filter
       const showInactiveKey = getStorageKey(userId, 'available', 'showInactive');
-      const savedShowInactive = loadFromStorage(showInactiveKey, false);
+      const savedShowInactive = loadFromStorage(showInactiveKey, true);
       setShowInactive(savedShowInactive);
       
       // Load selectedEvents filter
@@ -137,7 +137,50 @@ const MarketplaceTab: React.FC<MarketplaceTabProps> = ({
 
 
   // Enhanced filtering logic with multi-event filtering
-  let baseSlots = showInactive ? allSlots : allSlots.filter((slot: any) => slot.Status === 'offered');
+  let baseSlots = showInactive ? allSlots : allSlots.filter((slot: any) => 
+    slot.Status === 'offered' || 
+    slot.Status === 'claimed' || 
+    slot.Status === 'retracted' || 
+    slot.Status === 'reassigned' || 
+    slot.Status === 'admin-reassigned' ||
+    slot.Status === 'expired'
+  );
+
+  // Client-side expiration check - mark slots as expired if they're more than 1 hour past their event time
+  const expiredSlots: any[] = [];
+  baseSlots = baseSlots.map((slot: any) => {
+    if (slot.Status === 'offered' && shouldSlotBeExpired(slot.Date, slot.Time)) {
+      expiredSlots.push(slot);
+      return { ...slot, Status: 'expired' };
+    }
+    return slot;
+  });
+
+  // Update expired slots in the sheet if any were found
+  useEffect(() => {
+    if (expiredSlots.length > 0) {
+      const updateExpiredSlots = async () => {
+        try {
+          const response = await fetch('/api/slots/update-expired', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ expiredSlots }),
+          });
+          
+          const result = await response.json();
+          if (result.success && result.updatedCount > 0) {
+            console.log(`Updated ${result.updatedCount} slots to expired status`);
+          }
+        } catch (error) {
+          console.error('Error updating expired slots:', error);
+        }
+      };
+      
+      updateExpiredSlots();
+    }
+  }, [expiredSlots.length]);
   
   // Event filtering - show slots for any selected event
   if (!selectedEvents.has('all')) {

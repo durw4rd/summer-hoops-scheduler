@@ -6,7 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { useState } from "react";
 // Remove icon imports
 // import { Gift, Repeat, UserPlus } from "lucide-react";
-import { getOptimizedProfileImage, handleProfileImageError, normalizeDate } from "@/lib/utils";
+import { getOptimizedProfileImage, handleProfileImageError, normalizeDate, isSessionInPast } from "@/lib/utils";
 
 interface Session {
   id: string;
@@ -38,6 +38,8 @@ interface ScheduleCardProps {
   handleRequestSwap: (slot: any) => void;
   onReassignClick?: (sessionInfo: { date: string; time: string; currentPlayer: string }) => void;
   onClaimAvailableSlot?: (info: { date: string; time: string }) => void;
+  adminMode?: boolean;
+  onAdminReassignClick?: (sessionInfo: { date: string; time: string; currentPlayer: string }) => void;
 }
 
 function getSlotForSession(availableSlots: any[], date: string, time: string, player: string) {
@@ -62,6 +64,8 @@ export default function ScheduleCard({
   handleRequestSwap,
   onReassignClick,
   onClaimAvailableSlot,
+  adminMode = false,
+  onAdminReassignClick,
 }: ScheduleCardProps) {
   return (
     <Card
@@ -148,7 +152,7 @@ export default function ScheduleCard({
               <Separator className="my-2" />
               {(!condensedMode && session.players.length > 0) && (
                 <>
-                  <div className="mt-3 flex flex-wrap gap-1 relative">
+                  <div className="mt-3 flex flex-wrap gap-1 relative group">
                     {/* Group and count players to avoid duplicate keys and show +N for multiples */}
                     {(() => {
                       const playerCounts: Record<string, number> = {};
@@ -160,11 +164,25 @@ export default function ScheduleCard({
                         const playerColor = userMapping[playerId]?.color;
                         const isCurrentUser = playerName && playerId.toLowerCase() === playerName.toLowerCase();
                         const count = playerCounts[playerId];
+                        const isClickable = adminMode && onAdminReassignClick;
+                        
                         return (
                           <div
                             key={playerId + '-' + idx}
-                            className={`flex items-center space-x-1 bg-white rounded-full px-2 py-1 text-xs ${isCurrentUser ? "font-bold text-orange-600" : ""}`}
+                            className={`flex items-center space-x-1 bg-white rounded-full px-2 py-1 text-xs ${
+                              isCurrentUser ? "font-bold text-orange-600" : ""
+                            } ${
+                              isClickable 
+                                ? "cursor-pointer hover:bg-red-50 hover:border-red-300 border border-transparent transition-colors" 
+                                : ""
+                            }`}
                             style={playerColor ? { backgroundColor: playerColor, color: '#fff' } : {}}
+                            onClick={isClickable ? () => onAdminReassignClick!({ 
+                              date: game.date, 
+                              time: session.time, 
+                              currentPlayer: playerId 
+                            }) : undefined}
+                            title={isClickable ? `Admin: Click to reassign ${playerId}'s slot` : undefined}
                           >
                             <Avatar className="w-4 h-4">
                               <AvatarImage
@@ -184,6 +202,11 @@ export default function ScheduleCard({
                                 <span className="ml-1 text-xs font-semibold">+{count - 1}</span>
                               )}
                             </span>
+                            {isClickable && (
+                              <span className="ml-1 text-red-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                                🔧
+                              </span>
+                            )}
                           </div>
                         );
                       });
@@ -211,28 +234,32 @@ export default function ScheduleCard({
               {/* Slot for grabs actions */}
               {isUserParticipant && !userSlot && (
                 <div className="mt-3 flex flex-row w-full gap-x-1">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-1 min-w-0 whitespace-normal h-auto rounded-md font-semibold border-red-500 text-red-600 hover:bg-red-50 flex items-center justify-center gap-1"
-                    disabled={slotActionLoading === sessionId}
-                    onClick={() => handleOfferSlot(game.date, session.time, playerName!, sessionId)}
-                  >
-                    {slotActionLoading === sessionId ? "Offering..." : "Offer for grabs"}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-1 min-w-0 whitespace-normal h-auto rounded-md font-semibold border-blue-500 text-blue-600 hover:bg-blue-50 flex items-center justify-center gap-1"
-                    onClick={() => handleRequestSwap({ Date: game.date, Time: session.time })}
-                  >
-                    Offer for swap
-                  </Button>
+                  {!isSessionInPast(game.date) && (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 min-w-0 whitespace-normal h-auto rounded-md font-semibold border-red-500 text-red-600 hover:bg-red-50 flex items-center justify-center gap-1"
+                        disabled={slotActionLoading === sessionId}
+                        onClick={() => handleOfferSlot(game.date, session.time, playerName!, sessionId)}
+                      >
+                        {slotActionLoading === sessionId ? "Offering..." : "Offer for grabs"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 min-w-0 whitespace-normal h-auto rounded-md font-semibold border-blue-500 text-blue-600 hover:bg-blue-50 flex items-center justify-center gap-1"
+                        onClick={() => handleRequestSwap({ Date: game.date, Time: session.time })}
+                      >
+                        Offer for swap
+                      </Button>
+                    </>
+                  )}
                   {onReassignClick && (
                     <Button
                       size="sm"
                       variant="outline"
-                      className="flex-1 min-w-0 whitespace-normal h-auto rounded-md font-semibold border-gray-400 text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-1"
+                      className={`${!isSessionInPast(game.date) ? 'flex-1' : 'w-full'} min-w-0 whitespace-normal h-auto rounded-md font-semibold border-gray-400 text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-1`}
                       onClick={() => onReassignClick({ date: game.date, time: session.time, currentPlayer: playerName! })}
                     >
                       Reassign
@@ -241,7 +268,7 @@ export default function ScheduleCard({
                 </div>
               )}
               {/* Claim available slot button for non-participants if session is not full */}
-              {playerName && !isUserParticipant && session.players.length < session.maxPlayers && (
+              {playerName && !isUserParticipant && session.players.length < session.maxPlayers && !isSessionInPast(game.date) && (
                 <Button
                   size="sm"
                   variant="default"

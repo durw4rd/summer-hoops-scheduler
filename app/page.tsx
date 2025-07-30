@@ -56,6 +56,14 @@ export default function SummerHoopsScheduler() {
   const { data: session, status } = useSession();
   const { getFlagValue } = useLaunchDarkly();
   const showFlagsTab = getFlagValue('showFlagsTab', false);
+  const adminMode = getFlagValue('adminMode', false);
+  
+  // Debug logging for admin mode (development only)
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development' && adminMode) {
+      console.log('🔧 Admin mode is ACTIVE');
+    }
+  }, [adminMode]);
   
   // Consolidated state management
   const [schedule, setSchedule] = useState<ScheduleData[]>([]);
@@ -437,7 +445,7 @@ export default function SummerHoopsScheduler() {
   // Early returns for better readability
   if (status === "loading") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50">
+      <div className="h-screen bg-gradient-to-br from-orange-50 to-red-50 overflow-y-auto">
         <Header session={session} onSignIn={() => signIn("google")} onSignOut={signOut} userMapping={userMapping} />
         <div className="max-w-md mx-auto px-4 py-6">
           <div className="text-center text-gray-500 py-10">Loading...</div>
@@ -448,7 +456,7 @@ export default function SummerHoopsScheduler() {
 
   if (!session) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50">
+      <div className="h-screen bg-gradient-to-br from-orange-50 to-red-50 overflow-y-auto">
         <Header session={session} onSignIn={() => signIn("google")} onSignOut={signOut} userMapping={userMapping} />
         <div className="max-w-md mx-auto px-4 py-6">
           <div className="text-center text-gray-500 py-10">You need to log in to use the app.</div>
@@ -458,8 +466,8 @@ export default function SummerHoopsScheduler() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50">
-      <Header session={session} onSignIn={() => signIn("google")} onSignOut={signOut} userMapping={userMapping} />
+    <div className="h-screen bg-gradient-to-br from-orange-50 to-red-50 overflow-y-auto">
+      <Header session={session} onSignIn={() => signIn("google")} onSignOut={signOut} userMapping={userMapping} adminMode={adminMode} />
 
       {/* Tab Navigation - Always visible when authenticated */}
       {session && (
@@ -523,6 +531,7 @@ export default function SummerHoopsScheduler() {
                   });
                 }}
                 onScheduleRefresh={refreshScheduleForTab}
+                adminMode={adminMode}
               />
             )}
           </TabsContent>
