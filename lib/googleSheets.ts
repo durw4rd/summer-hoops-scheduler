@@ -8,7 +8,7 @@ const SHEET_USER_MAPPING = "User mapping";
 /** Range for the schedule (update as needed for new rows) */
 const RANGE_SCHEDULE = `${SHEET_DAILY_SCHEDULE}!B5:D`;
 /** Range for the marketplace sheet */
-const RANGE_SLOTS = `${SHEET_MARKETPLACE}!A:I`;
+const RANGE_SLOTS = `${SHEET_MARKETPLACE}!A:J`;
 /** Range for the user mapping sheet */
 const RANGE_USER_MAPPING = `${SHEET_USER_MAPPING}!A2:C`;
 /** The starting row for the schedule (for C column updates) */
@@ -267,6 +267,65 @@ export async function retractSlot({ date, time, player }: { date: string; time: 
     },
   });
   return { success: true };
+}
+
+export async function settleSlot({ date, time, player }: { date: string; time: string; player: string }) {
+  const sheets = await getGoogleSheetsClient();
+  const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
+  // Read all rows to find the matching slot
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: RANGE_SLOTS,
+  });
+  const values = res.data.values || [];
+  const header = values[0];
+  const rows = values.slice(1);
+  const idx = rows.findIndex(row =>
+    row[0] === date && row[1] === time && row[2] === player
+  );
+  if (idx === -1) throw new Error('Slot not found');
+  
+  const row = rows[idx];
+  const status = row[3]; // Status column (D)
+  const swapRequested = row[4]; // SwapRequested column (E)
+  const settled = row[9]; // Settled column (J)
+  
+  // Validate that slot can be settled
+  if (!['claimed', 'reassigned', 'admin-reassigned'].includes(status)) {
+    throw new Error('Slot must be claimed, reassigned, or admin-reassigned to be settled');
+  }
+  
+  // Exclude swapped slots
+  if (swapRequested === 'yes') {
+    throw new Error('Swapped slots cannot be settled');
+  }
+  
+  // Check if slot is in the past
+  const [day, month] = date.split('.').map(Number);
+  const [hour, minute] = time.split(':').map(Number);
+  const slotDate = new Date(new Date().getFullYear(), month - 1, day, hour, minute);
+  const now = new Date();
+  
+  if (slotDate > now) {
+    throw new Error('Only past slots can be settled');
+  }
+  
+  const rowNumber = idx + 2; // +2 for 1-based index and header
+  const newSettledValue = settled === 'yes' ? 'no' : 'yes';
+  
+  await sheets.spreadsheets.values.batchUpdate({
+    spreadsheetId,
+    requestBody: {
+      valueInputOption: 'USER_ENTERED',
+      data: [
+        {
+          range: `${SHEET_MARKETPLACE}!J${rowNumber}`,
+          values: [[newSettledValue]],
+        },
+      ],
+    },
+  });
+  return { success: true, settled: newSettledValue === 'yes' };
 }
 
 export async function getAvailableSlots() {

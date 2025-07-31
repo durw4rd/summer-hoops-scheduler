@@ -228,6 +228,20 @@ export default function SummerHoopsScheduler() {
     }
   };
 
+  const handleSettleSlot = async (date: string, time: string, player: string): Promise<void> => {
+    setSlotActionLoading(`settle-${date}-${time}-${player}`);
+    try {
+      await fetch("/api/slots/settle", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date, time, player }),
+      });
+      await fetchMarketplaceData();
+    } finally {
+      setSlotActionLoading(null);
+    }
+  };
+
   const handleRequestSwap = (slot: SlotData): void => {
     setSwapModalOpen(true);
     setSwapSourceSlot(`${slot.Date}__${slot.Time}`);
@@ -573,6 +587,7 @@ export default function SummerHoopsScheduler() {
                 }}
                 handleOfferSlot={handleOfferSlot}
                 handleRequestSwap={handleRequestSwap}
+                handleSettleSlot={handleSettleSlot}
                 showInactiveSlots={showInactiveSlots}
                 setShowInactiveSlots={setShowInactiveSlots}
                 showOnlyMine={showOnlyMine}

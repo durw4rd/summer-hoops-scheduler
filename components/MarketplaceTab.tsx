@@ -17,6 +17,7 @@ interface MarketplaceTabProps {
   handleAcceptSwap: (slot: any) => void;
   handleOfferSlot: (date: string, time: string, player: string, sessionId: string) => void;
   handleRequestSwap: (slot: any) => void;
+  handleSettleSlot?: (date: string, time: string, player: string) => void;
   showInactiveSlots: boolean;
   setShowInactiveSlots: (v: (prev: boolean) => boolean) => void;
   showOnlyMine: boolean;
@@ -40,6 +41,7 @@ const MarketplaceTab: React.FC<MarketplaceTabProps> = ({
   handleAcceptSwap,
   handleOfferSlot,
   handleRequestSwap,
+  handleSettleSlot,
   showInactiveSlots,
   setShowInactiveSlots,
   showOnlyMine,
@@ -53,6 +55,7 @@ const MarketplaceTab: React.FC<MarketplaceTabProps> = ({
   const [showAllActive, setShowAllActive] = useState(true); // default to true - show all active offers
   const [showMine, setShowMine] = useState(false); // default to false - don't show mine
   const [showInactive, setShowInactive] = useState(false); // default to false - don't show inactive slots by default
+  const [showSettled, setShowSettled] = useState(false); // default to false - don't show settled slots by default
   const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set(['all']));
 
   const [hasMounted, setHasMounted] = useState(false);
@@ -90,6 +93,11 @@ const MarketplaceTab: React.FC<MarketplaceTabProps> = ({
       if (savedSelectedEvents && Array.isArray(savedSelectedEvents)) {
         setSelectedEvents(new Set(savedSelectedEvents));
       }
+      
+      // Load showSettled filter
+      const showSettledKey = getStorageKey(userId, 'available', 'showSettled');
+      const savedShowSettled = loadFromStorage(showSettledKey, false);
+      setShowSettled(savedShowSettled);
     }
   }, [hasMounted, loggedInUser?.user?.email]);
 
@@ -109,8 +117,11 @@ const MarketplaceTab: React.FC<MarketplaceTabProps> = ({
       
       const selectedEventsKey = getStorageKey(userId, 'available', 'selectedEvents');
       saveToStorage(selectedEventsKey, Array.from(selectedEvents));
+      
+      const showSettledKey = getStorageKey(userId, 'available', 'showSettled');
+      saveToStorage(showSettledKey, showSettled);
     }
-  }, [hasMounted, showAllActive, showMine, showInactive, selectedEvents, loggedInUser?.user?.email]);
+  }, [hasMounted, showAllActive, showMine, showInactive, showSettled, selectedEvents, loggedInUser?.user?.email]);
 
   // Extract unique events from slots for filtering
   const uniqueEvents = useMemo(() => {
@@ -187,6 +198,11 @@ const MarketplaceTab: React.FC<MarketplaceTabProps> = ({
     baseSlots = baseSlots.filter((slot: any) => slot.Player !== playerName);
   }
   
+  // Settled filtering
+  if (!showSettled) {
+    baseSlots = baseSlots.filter((slot: any) => slot.Settled !== 'yes');
+  }
+  
   const filteredSlots = showAllActive
     ? baseSlots
     : baseSlots.filter((slot: any) => {
@@ -232,6 +248,12 @@ const MarketplaceTab: React.FC<MarketplaceTabProps> = ({
       label: 'Show Inactive',
       value: showInactive,
     },
+    {
+      id: 'showSettled',
+      type: 'toggle',
+      label: 'Show Settled',
+      value: showSettled,
+    },
   ];
 
   const handleFilterChange = (filterId: string, value: any) => {
@@ -247,6 +269,9 @@ const MarketplaceTab: React.FC<MarketplaceTabProps> = ({
         break;
       case 'showInactive':
         setShowInactive(value);
+        break;
+      case 'showSettled':
+        setShowSettled(value);
         break;
     }
   };
@@ -307,6 +332,7 @@ const MarketplaceTab: React.FC<MarketplaceTabProps> = ({
                           handleAcceptSwap={handleAcceptSwap}
                           handleOfferSlot={handleOfferSlot}
                           handleRequestSwap={handleRequestSwap}
+                          handleSettleSlot={handleSettleSlot}
                           isOwner={isOwner}
                           isInactive={isInactive}
                           isUserInSession={isUserInSession}

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useMemo } from "react";
 import { getDayOfWeek, isSessionInPast } from "@/lib/utils";
 import { getOptimizedProfileImage, handleProfileImageError } from "@/lib/utils";
+import { Euro } from "lucide-react";
 
 interface SlotCardProps {
   slot: any;
@@ -16,6 +17,7 @@ interface SlotCardProps {
   handleAcceptSwap: (slot: any) => void;
   handleOfferSlot: (date: string, time: string, player: string, sessionId: string) => void;
   handleRequestSwap: (slot: any) => void;
+  handleSettleSlot?: (date: string, time: string, player: string) => void;
   isOwner: boolean;
   isInactive: boolean;
   isUserInSession: boolean;
@@ -26,6 +28,9 @@ interface SlotCardProps {
 
 // Utility function to get comprehensive status information
 const getStatusInfo = (slot: any) => {
+  // Check if slot is settled (column J)
+  const isSettled = slot.Settled === 'yes';
+  
   switch (slot.Status) {
     case 'offered':
       if (slot.SwapRequested === 'yes') {
@@ -33,14 +38,16 @@ const getStatusInfo = (slot: any) => {
           badge: 'Swap Offer', 
           color: 'blue', 
           details: null,
-          borderColor: 'border-l-blue-400'
+          borderColor: 'border-l-blue-400',
+          isSettled
         };
       } else {
         return { 
           badge: 'Up For Grabs', 
           color: 'yellow', 
           details: null,
-          borderColor: 'border-l-yellow-400'
+          borderColor: 'border-l-yellow-400',
+          isSettled
         };
       }
     case 'claimed':
@@ -48,42 +55,48 @@ const getStatusInfo = (slot: any) => {
         badge: 'Claimed', 
         color: 'green', 
         details: slot.ClaimedBy ? `by ${slot.ClaimedBy}` : null,
-        borderColor: 'border-l-green-400'
+        borderColor: 'border-l-green-400',
+        isSettled
       };
     case 'retracted':
       return { 
         badge: 'Retracted', 
         color: 'gray', 
         details: null,
-        borderColor: 'border-l-gray-400'
+        borderColor: 'border-l-gray-400',
+        isSettled
       };
     case 'reassigned':
       return { 
         badge: 'Reassigned', 
         color: 'blue', 
         details: slot.ClaimedBy ? `to ${slot.ClaimedBy}` : null,
-        borderColor: 'border-l-blue-400'
+        borderColor: 'border-l-blue-400',
+        isSettled
       };
     case 'admin-reassigned':
       return { 
         badge: 'Admin Reassigned', 
         color: 'red', 
         details: slot.ClaimedBy ? `to ${slot.ClaimedBy}` : null,
-        borderColor: 'border-l-red-400'
+        borderColor: 'border-l-red-400',
+        isSettled
       };
     case 'expired':
       return { 
         badge: 'Expired', 
         color: 'gray', 
         details: null,
-        borderColor: 'border-l-gray-400'
+        borderColor: 'border-l-gray-400',
+        isSettled
       };
     default:
       return { 
         badge: slot.Status || 'Unknown', 
         color: 'gray', 
         details: null,
-        borderColor: 'border-l-gray-400'
+        borderColor: 'border-l-gray-400',
+        isSettled
       };
   }
 };
@@ -132,6 +145,7 @@ export default function SlotCard({
   handleAcceptSwap,
   handleOfferSlot,
   handleRequestSwap,
+  handleSettleSlot,
   isOwner,
   isInactive,
   isUserInSession,
@@ -143,16 +157,17 @@ export default function SlotCard({
   const formattedTimestamp = formatTimestamp(slot.Timestamp);
 
   return (
-    <Card
-      key={idx}
-      className={`border-l-4 ${slot.Status === 'offered' ? '' : statusInfo.borderColor}`}
-      style={slot.Status === 'offered' ? {
-        borderLeftColor: getPlayerColor(slot.Player),
-        background: `linear-gradient(90deg, ${getPlayerColor(slot.Player)}11 0%, transparent 100%)` // subtle tint
-      } : slot.Status === 'admin-reassigned' ? {
-        background: `linear-gradient(90deg, #fee2e2 0%, transparent 100%)` // admin red tint
-      } : {}}
-    >
+    <div className="relative">
+      <Card
+        key={idx}
+        className={`border-l-4 ${slot.Status === 'offered' ? '' : statusInfo.borderColor}`}
+        style={slot.Status === 'offered' ? {
+          borderLeftColor: getPlayerColor(slot.Player),
+          background: `linear-gradient(90deg, ${getPlayerColor(slot.Player)}11 0%, transparent 100%)` // subtle tint
+        } : slot.Status === 'admin-reassigned' ? {
+          background: `linear-gradient(90deg, #fee2e2 0%, transparent 100%)` // admin red tint
+        } : {}}
+      >
       <CardHeader className="pb-2 flex flex-row items-start justify-between">
         <CardTitle className="text-md flex items-center gap-2">
           <span>{slot.Date}</span>
@@ -269,7 +284,30 @@ export default function SlotCard({
             {slotActionLoading === `available-${idx}` ? "Claiming..." : `Claim ${slot.Player.split(' ')[0]}'s Slot`}
           </Button>
         )}
+        
+        {/* Settle button for eligible slots */}
+        {handleSettleSlot && ['claimed', 'reassigned', 'admin-reassigned'].includes(slot.Status) && slot.SwapRequested !== 'yes' && isSessionInPast(slot.Date) && (
+          <Button
+            size="sm"
+            variant={statusInfo.isSettled ? "outline" : "secondary"}
+            className={statusInfo.isSettled ? "" : "bg-green-600 hover:bg-green-700 text-white"}
+            onClick={() => handleSettleSlot(slot.Date, slot.Time, slot.Player)}
+          >
+            {statusInfo.isSettled ? "Mark as Unsettled" : "Mark as Settled"}
+          </Button>
+        )}
       </CardContent>
     </Card>
+      
+      {/* Settled overlay */}
+      {statusInfo.isSettled && (
+        <div className="absolute inset-0 bg-green-500/20 flex items-center justify-center pointer-events-none">
+          <div className="bg-green-600 text-white px-3 py-1 rounded-full flex items-center gap-2 text-sm font-medium">
+            <Euro className="w-4 h-4" />
+            SETTLED
+          </div>
+        </div>
+      )}
+    </div>
   );
 } 
