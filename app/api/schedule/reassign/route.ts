@@ -3,7 +3,7 @@ import { getGoogleSheetsClient } from "@/lib/googleSheets";
 import { normalizeDate } from "@/lib/utils";
 
 const SCHEDULE_SHEET = "Daily schedule";
-const SLOTS_SHEET = "Slots for grabs";
+const SLOTS_SHEET = "Marketplace";
 
 export async function POST(req: NextRequest) {
   try {
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
       requestBody: { values: [[players.join(', ')]] },
     });
 
-    // 2. Add entry to Slots for grabs with status 'reassigned'
+    // 2. Add entry to Marketplace with status 'reassigned'
     const now = new Date().toISOString();
     await sheets.spreadsheets.values.append({
       spreadsheetId,

@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     try {
       response = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: 'Slots for grabs!A:Z',
+        range: 'Marketplace!A:Z',
       });
     } catch (error) {
       console.error('Error calling Google Sheets API:', error);
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
 
       if (rowIndex !== -1) {
         const columnLetter = String.fromCharCode(65 + statusColIndex);
-        const range = `Slots for grabs!${columnLetter}${rowIndex + 2}`;
+        const range = `Marketplace!${columnLetter}${rowIndex + 2}`;
         
         updates.push({
           range: range,

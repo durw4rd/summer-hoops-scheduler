@@ -52,7 +52,7 @@ const MarketplaceTab: React.FC<MarketplaceTabProps> = ({
 }) => {
   const [showAllActive, setShowAllActive] = useState(true); // default to true - show all active offers
   const [showMine, setShowMine] = useState(false); // default to false - don't show mine
-  const [showInactive, setShowInactive] = useState(true); // default to true - show all slots including inactive ones
+  const [showInactive, setShowInactive] = useState(false); // default to false - don't show inactive slots by default
   const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set(['all']));
 
   const [hasMounted, setHasMounted] = useState(false);
@@ -81,7 +81,7 @@ const MarketplaceTab: React.FC<MarketplaceTabProps> = ({
       
       // Load showInactive filter
       const showInactiveKey = getStorageKey(userId, 'available', 'showInactive');
-      const savedShowInactive = loadFromStorage(showInactiveKey, true);
+      const savedShowInactive = loadFromStorage(showInactiveKey, false);
       setShowInactive(savedShowInactive);
       
       // Load selectedEvents filter
@@ -138,12 +138,7 @@ const MarketplaceTab: React.FC<MarketplaceTabProps> = ({
 
   // Enhanced filtering logic with multi-event filtering
   let baseSlots = showInactive ? allSlots : allSlots.filter((slot: any) => 
-    slot.Status === 'offered' || 
-    slot.Status === 'claimed' || 
-    slot.Status === 'retracted' || 
-    slot.Status === 'reassigned' || 
-    slot.Status === 'admin-reassigned' ||
-    slot.Status === 'expired'
+    slot.Status === 'offered'
   );
 
   // Client-side expiration check - mark slots as expired if they're more than 1 hour past their event time

@@ -1,14 +1,14 @@
 // Sheet and range constants
 /** Name of the daily schedule sheet */
 const SHEET_DAILY_SCHEDULE = "Daily schedule";
-/** Name of the slots for grabs sheet */
-const SHEET_SLOTS_FOR_GRABS = "Slots for grabs";
+/** Name of the marketplace sheet */
+const SHEET_MARKETPLACE = "Marketplace";
 /** Name of the user mapping sheet */
 const SHEET_USER_MAPPING = "User mapping";
 /** Range for the schedule (update as needed for new rows) */
 const RANGE_SCHEDULE = `${SHEET_DAILY_SCHEDULE}!B5:D`;
-/** Range for the slots for grabs sheet */
-const RANGE_SLOTS = SHEET_SLOTS_FOR_GRABS;
+/** Range for the marketplace sheet */
+const RANGE_SLOTS = `${SHEET_MARKETPLACE}!A:I`;
 /** Range for the user mapping sheet */
 const RANGE_USER_MAPPING = `${SHEET_USER_MAPPING}!A2:C`;
 /** The starting row for the schedule (for C column updates) */
@@ -101,7 +101,7 @@ export async function claimSlot({ date, time, player, claimer }: { date: string;
   const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
   const now = new Date().toISOString();
 
-  // If claiming a free spot (not an offered slot), just add an entry to Slots for grabs
+  // If claiming a free spot (not an offered slot), just add an entry to Marketplace
   if (player === 'free spot') {
     await sheets.spreadsheets.values.append({
       spreadsheetId,
@@ -166,15 +166,15 @@ export async function claimSlot({ date, time, player, claimer }: { date: string;
       valueInputOption: 'USER_ENTERED',
       data: [
         {
-          range: `${SHEET_SLOTS_FOR_GRABS}!D${rowNumber}`,
+          range: `${SHEET_MARKETPLACE}!D${rowNumber}`,
           values: [['claimed']],
         },
         {
-          range: `${SHEET_SLOTS_FOR_GRABS}!H${rowNumber}`,
+          range: `${SHEET_MARKETPLACE}!H${rowNumber}`,
           values: [[claimer]],
         },
         {
-          range: `${SHEET_SLOTS_FOR_GRABS}!I${rowNumber}`,
+          range: `${SHEET_MARKETPLACE}!I${rowNumber}`,
           values: [[now]],
         },
       ],
@@ -252,15 +252,15 @@ export async function retractSlot({ date, time, player }: { date: string; time: 
       valueInputOption: 'USER_ENTERED',
       data: [
         {
-          range: `${SHEET_SLOTS_FOR_GRABS}!D${rowNumber}`,
+          range: `${SHEET_MARKETPLACE}!D${rowNumber}`,
           values: [['retracted']],
         },
         {
-          range: `${SHEET_SLOTS_FOR_GRABS}!H${rowNumber}`,
+          range: `${SHEET_MARKETPLACE}!H${rowNumber}`,
           values: [['']],
         },
         {
-          range: `${SHEET_SLOTS_FOR_GRABS}!I${rowNumber}`,
+          range: `${SHEET_MARKETPLACE}!I${rowNumber}`,
           values: [[now]],
         },
       ],
@@ -333,9 +333,9 @@ export async function acceptSlotSwap({ date, time, player, requestedDate, reques
     requestBody: {
       valueInputOption: 'USER_ENTERED',
       data: [
-        { range: `${SHEET_SLOTS_FOR_GRABS}!D${rowNumber}`, values: [['claimed']] },
-        { range: `${SHEET_SLOTS_FOR_GRABS}!H${rowNumber}`, values: [[acceptingPlayer]] },
-        { range: `${SHEET_SLOTS_FOR_GRABS}!I${rowNumber}`, values: [[now]] },
+        { range: `${SHEET_MARKETPLACE}!D${rowNumber}`, values: [['claimed']] },
+        { range: `${SHEET_MARKETPLACE}!H${rowNumber}`, values: [[acceptingPlayer]] },
+        { range: `${SHEET_MARKETPLACE}!I${rowNumber}`, values: [[now]] },
       ],
     },
   });
