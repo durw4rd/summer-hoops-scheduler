@@ -328,6 +328,94 @@ export async function settleSlot({ date, time, player }: { date: string; time: s
   return { success: true, settled: newSettledValue === 'yes' };
 }
 
+export async function updateExpiredSlots(expiredSlots: any[]) {
+  if (!expiredSlots || !Array.isArray(expiredSlots) || expiredSlots.length === 0) {
+    return { success: true, message: "No slots to update" };
+  }
+
+  const sheets = await getGoogleSheetsClient();
+  const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
+  
+  // Read the current slots data to find row numbers
+  let response;
+  try {
+    response = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: RANGE_SLOTS,
+    });
+  } catch (error) {
+    console.error('Error calling Google Sheets API:', error);
+    throw new Error('Failed to read sheet data');
+  }
+
+  const rows = response.data.values;
+  if (!rows || rows.length === 0) {
+    throw new Error('No data found');
+  }
+
+  const headers = rows[0];
+  const dataRows = rows.slice(1);
+
+  // Find column indices
+  const dateColIndex = headers.findIndex((h: string) => h === 'Date');
+  const timeColIndex = headers.findIndex((h: string) => h === 'Time');
+  const playerColIndex = headers.findIndex((h: string) => h === 'Player');
+  const statusColIndex = headers.findIndex((h: string) => h === 'Status');
+
+  if (dateColIndex === -1 || timeColIndex === -1 || playerColIndex === -1 || statusColIndex === -1) {
+    throw new Error('Required columns not found');
+  }
+
+  const updates: any[] = [];
+
+  // For each expired slot, find the corresponding row and update it
+  expiredSlots.forEach((slot: any) => {
+    const rowIndex = dataRows.findIndex((row: any[]) => {
+      const rowDate = row[dateColIndex];
+      const rowTime = row[timeColIndex];
+      const rowPlayer = row[playerColIndex];
+      const rowStatus = row[statusColIndex];
+      
+      return rowDate === slot.Date && 
+             rowTime === slot.Time && 
+             rowPlayer === slot.Player &&
+             rowStatus === 'offered';
+    });
+
+    if (rowIndex !== -1) {
+      const columnLetter = String.fromCharCode(65 + statusColIndex);
+      const range = `${SHEET_MARKETPLACE}!${columnLetter}${rowIndex + 2}`;
+      
+      updates.push({
+        range: range,
+        values: [['expired']]
+      });
+    }
+  });
+
+  // Apply all updates if there are any
+  if (updates.length > 0) {
+    try {
+      await sheets.spreadsheets.values.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          valueInputOption: 'RAW',
+          data: updates
+        }
+      });
+    } catch (error) {
+      console.error('Error updating sheet:', error);
+      throw new Error('Failed to update sheet data');
+    }
+  }
+
+  return { 
+    success: true, 
+    updatedCount: updates.length,
+    message: `Updated ${updates.length} slots to expired status`
+  };
+}
+
 export async function getAvailableSlots() {
   const sheets = await getGoogleSheetsClient();
   const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
