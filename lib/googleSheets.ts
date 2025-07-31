@@ -269,7 +269,7 @@ export async function retractSlot({ date, time, player }: { date: string; time: 
   return { success: true };
 }
 
-export async function settleSlot({ date, time, player }: { date: string; time: string; player: string }) {
+export async function settleSlot({ date, time, player, requestingUser, adminMode = false }: { date: string; time: string; player: string; requestingUser: string; adminMode?: boolean }) {
   const sheets = await getGoogleSheetsClient();
   const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
   // Read all rows to find the matching slot
@@ -308,6 +308,11 @@ export async function settleSlot({ date, time, player }: { date: string; time: s
   
   if (slotDate > now) {
     throw new Error('Only past slots can be settled');
+  }
+  
+  // Check permissions - only original owner or admin can settle
+  if (!adminMode && requestingUser !== player) {
+    throw new Error('Only the original slot owner or admins can settle slots');
   }
   
   const rowNumber = idx + 2; // +2 for 1-based index and header

@@ -27,6 +27,7 @@ interface MarketplaceTabProps {
   isEligibleForSwap: (slot: any) => boolean;
   onClaimClick: (slot: any, claimSessionId: string) => void;
   loggedInUser: any;
+  adminMode?: boolean;
 }
 
 const MarketplaceTab: React.FC<MarketplaceTabProps> = ({
@@ -51,6 +52,7 @@ const MarketplaceTab: React.FC<MarketplaceTabProps> = ({
   isEligibleForSwap,
   onClaimClick,
   loggedInUser,
+  adminMode = false,
 }) => {
   const [showAllActive, setShowAllActive] = useState(true); // default to true - show all active offers
   const [showMine, setShowMine] = useState(false); // default to false - don't show mine
@@ -339,6 +341,7 @@ const MarketplaceTab: React.FC<MarketplaceTabProps> = ({
                           getPlayerColor={getPlayerColor}
                           acceptSwapEligible={acceptSwapEligible}
                           onClaimClick={onClaimClick}
+                          adminMode={adminMode}
                         />
                       );
                     })

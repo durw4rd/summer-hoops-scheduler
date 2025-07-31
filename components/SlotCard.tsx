@@ -24,6 +24,7 @@ interface SlotCardProps {
   getPlayerColor: (name: string) => string;
   acceptSwapEligible: boolean;
   onClaimClick: (slot: any, claimSessionId: string) => void;
+  adminMode?: boolean;
 }
 
 // Utility function to get comprehensive status information
@@ -152,6 +153,7 @@ export default function SlotCard({
   getPlayerColor,
   acceptSwapEligible,
   onClaimClick,
+  adminMode = false,
 }: SlotCardProps) {
   const statusInfo = getStatusInfo(slot);
   const formattedTimestamp = formatTimestamp(slot.Timestamp);
@@ -286,7 +288,7 @@ export default function SlotCard({
         )}
         
         {/* Settle button for eligible slots */}
-        {handleSettleSlot && ['claimed', 'reassigned', 'admin-reassigned'].includes(slot.Status) && slot.SwapRequested !== 'yes' && isSessionInPast(slot.Date) && (
+        {handleSettleSlot && ['claimed', 'reassigned', 'admin-reassigned'].includes(slot.Status) && slot.SwapRequested !== 'yes' && isSessionInPast(slot.Date) && (isOwner || adminMode) && (
           <Button
             size="sm"
             variant={statusInfo.isSettled ? "outline" : "secondary"}

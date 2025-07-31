@@ -234,7 +234,13 @@ export default function SummerHoopsScheduler() {
       await fetch("/api/slots/settle", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date, time, player }),
+        body: JSON.stringify({ 
+          date, 
+          time, 
+          player, 
+          requestingUser: playerName,
+          adminMode 
+        }),
       });
       await fetchMarketplaceData();
     } finally {
@@ -631,6 +637,7 @@ export default function SummerHoopsScheduler() {
                   });
                 }}
                 loggedInUser={session}
+                adminMode={adminMode}
               />
             )}
           </TabsContent>
