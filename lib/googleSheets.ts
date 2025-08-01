@@ -1,3 +1,6 @@
+import { google } from "googleapis";
+import { normalizeDate } from "@/lib/utils";
+
 // Sheet and range constants
 /** Name of the daily schedule sheet */
 const SHEET_DAILY_SCHEDULE = "Daily schedule";
@@ -13,8 +16,6 @@ const RANGE_SLOTS = `${SHEET_MARKETPLACE}!A:J`;
 const RANGE_USER_MAPPING = `${SHEET_USER_MAPPING}!A2:C`;
 /** The starting row for the schedule (for C column updates) */
 const SCHEDULE_START_ROW = 5;
-
-import { google } from "googleapis";
 
 export async function getGoogleSheetsClient() {
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
@@ -128,7 +129,7 @@ export async function claimSlot({ date, time, player, claimer }: { date: string;
       const [details, playerList] = scheduleRows[i];
       if (!details) continue;
       const { date: rowDate, time: rowTime } = parseSessionDetails(details);
-      if (rowDate === date && rowTime === time) {
+      if (normalizeDate(rowDate) === normalizeDate(date) && rowTime === time) {
         // Append the claimer to the player list
         let players = (playerList || '').split(',').map((p: string) => p.trim()).filter(Boolean);
         players.push(claimer);
@@ -156,7 +157,7 @@ export async function claimSlot({ date, time, player, claimer }: { date: string;
   const header = values[0];
   const rows = values.slice(1);
   const idx = rows.findIndex(row =>
-    row[0] === date && row[1] === time && row[2] === player && row[3] === 'offered'
+    normalizeDate(row[0]) === normalizeDate(date) && row[1] === time && row[2] === player && row[3] === 'offered'
   );
   if (idx === -1) throw new Error('Slot not found or already claimed');
   const rowNumber = idx + 2; // +2 for 1-based index and header
@@ -201,7 +202,7 @@ export async function claimSlot({ date, time, player, claimer }: { date: string;
     const [details, playerList] = scheduleRows[i];
     if (!details) continue;
     const { date: rowDate, time: rowTime } = parseSessionDetails(details);
-    if (rowDate === date && rowTime === time) {
+    if (normalizeDate(rowDate) === normalizeDate(date) && rowTime === time) {
       // Update player list: remove offering player, add claimer
       let players = (playerList || '').split(',').map((p: string) => p.trim()).filter(Boolean);
       const playerIdx = players.findIndex((p: string) => p.toLowerCase() === player.toLowerCase());
@@ -241,7 +242,7 @@ export async function retractSlot({ date, time, player }: { date: string; time: 
   const header = values[0];
   const rows = values.slice(1);
   const idx = rows.findIndex(row =>
-    row[0] === date && row[1] === time && row[2] === player && row[3] === 'offered'
+    normalizeDate(row[0]) === normalizeDate(date) && row[1] === time && row[2] === player && row[3] === 'offered'
   );
   if (idx === -1) throw new Error('Slot not found or not offered');
   const rowNumber = idx + 2; // +2 for 1-based index and header
@@ -281,7 +282,7 @@ export async function settleSlot({ date, time, player, requestingUser, adminMode
   const header = values[0];
   const rows = values.slice(1);
   const idx = rows.findIndex(row =>
-    row[0] === date && row[1] === time && row[2] === player
+    normalizeDate(row[0]) === normalizeDate(date) && row[1] === time && row[2] === player
   );
   if (idx === -1) throw new Error('Slot not found');
   
@@ -381,7 +382,7 @@ export async function updateExpiredSlots(expiredSlots: any[]) {
       const rowPlayer = row[playerColIndex];
       const rowStatus = row[statusColIndex];
       
-      return rowDate === slot.Date && 
+      return normalizeDate(rowDate) === normalizeDate(slot.Date) && 
              rowTime === slot.Time && 
              rowPlayer === slot.Player &&
              rowStatus === 'offered';
@@ -468,12 +469,12 @@ export async function acceptSlotSwap({ date, time, player, requestedDate, reques
   const header = values[0];
   const rows = values.slice(1);
   const idx = rows.findIndex(row =>
-    row[0] === date &&
+    normalizeDate(row[0]) === normalizeDate(date) &&
     row[1] === time &&
     row[2] === player &&
     row[3] === 'offered' &&
     row[4] === 'yes' &&
-    row[5] === requestedDate &&
+    normalizeDate(row[5]) === normalizeDate(requestedDate) &&
     row[6] === requestedTime
   );
   if (idx === -1) throw new Error('Swap request not found');
@@ -516,11 +517,11 @@ export async function acceptSlotSwap({ date, time, player, requestedDate, reques
     const [details, playerList] = scheduleRows[i];
     if (!details) continue;
     const { date: rowDate, time: rowTime } = parseSessionDetails(details);
-    if (rowDate === date && rowTime === time) {
+    if (normalizeDate(rowDate) === normalizeDate(date) && rowTime === time) {
       offerRowIdx = i;
       offerPlayers = (playerList || '').split(',').map((p: string) => p.trim()).filter(Boolean);
     }
-    if (rowDate === requestedDate && rowTime === requestedTime) {
+    if (normalizeDate(rowDate) === normalizeDate(requestedDate) && rowTime === requestedTime) {
       requestRowIdx = i;
       requestPlayers = (playerList || '').split(',').map((p: string) => p.trim()).filter(Boolean);
     }
