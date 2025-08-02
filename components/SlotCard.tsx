@@ -13,10 +13,8 @@ interface SlotCardProps {
   userMapping: Record<string, { email: string; color?: string }>;
   slotActionLoading: string | null;
   acceptSwapLoading: string | null;
-  handleRecallSlot: (date: string, time: string, player: string, actionId: string) => void;
-  handleAcceptSwap: (slot: any) => void;
-  handleOfferSlot: (date: string, time: string, player: string, sessionId: string) => void;
-  handleRequestSwap: (slot: any) => void;
+  handleRecallSlot: (slotId: string, actionId: string) => void;
+  handleAcceptSwap: (slotId: string) => void;
   handleSettleSlot?: (slotId: string) => void;
   isOwner: boolean;
   isInactive: boolean;
@@ -144,8 +142,6 @@ export default function SlotCard({
   acceptSwapLoading,
   handleRecallSlot,
   handleAcceptSwap,
-  handleOfferSlot,
-  handleRequestSwap,
   handleSettleSlot,
   isOwner,
   isInactive,
@@ -231,25 +227,7 @@ export default function SlotCard({
           <Badge className="bg-yellow-200 text-yellow-900 mb-2">Up For Grabs</Badge>
         )}
         
-        {/* Action buttons for owners */}
-        {isOwner && slot.Status !== 'offered' && slot.SwapRequested !== 'yes' && !isSessionInPast(slot.Date) && slot.Status !== 'expired' && (
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleOfferSlot(slot.Date, slot.Time, slot.Player, `available-${idx}`)}
-            >
-              Offer for Grabs
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => handleRequestSwap(slot)}
-            >
-              Offer for Swap
-            </Button>
-          </div>
-        )}
+
         
         {/* Recall button for owners */}
         {isOwner && slot.Status === 'offered' && !isSessionInPast(slot.Date) && slot.Status !== 'expired' && (
@@ -257,7 +235,7 @@ export default function SlotCard({
             size="sm"
             variant="destructive"
             disabled={slotActionLoading === `available-${idx}`}
-            onClick={() => handleRecallSlot(slot.Date, slot.Time, slot.Player, `recall-${idx}`)}
+            onClick={() => handleRecallSlot(slot.ID, `recall-${idx}`)}
           >
             {slotActionLoading === `recall-${idx}` ? "Recalling..." : "Recall Slot"}
           </Button>
@@ -268,10 +246,10 @@ export default function SlotCard({
           <Button
             size="sm"
             variant="default"
-            disabled={acceptSwapLoading === `${slot.Date}-${slot.Time}-${slot.Player}`}
-            onClick={() => handleAcceptSwap(slot)}
+            disabled={acceptSwapLoading === slot.ID}
+            onClick={() => handleAcceptSwap(slot.ID)}
           >
-            {acceptSwapLoading === `${slot.Date}-${slot.Time}-${slot.Player}` ? 'Accepting...' : 'Accept swap'}
+            {acceptSwapLoading === slot.ID ? 'Accepting...' : 'Accept swap'}
           </Button>
         )}
         

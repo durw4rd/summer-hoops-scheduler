@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
     const slotId = uuidv4();
     await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: SLOTS_SHEET,
+      range: `${SLOTS_SHEET}!A:K`,
       valueInputOption: 'USER_ENTERED',
       insertDataOption: 'INSERT_ROWS',
       requestBody: {

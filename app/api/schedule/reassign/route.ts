@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getGoogleSheetsClient } from "@/lib/googleSheets";
 import { normalizeDate } from "@/lib/utils";
+import { v4 as uuidv4 } from 'uuid';
 
 const SCHEDULE_SHEET = "Daily schedule";
 const SLOTS_SHEET = "Marketplace";
@@ -57,13 +58,14 @@ export async function POST(req: NextRequest) {
 
     // 2. Add entry to Marketplace with status 'reassigned'
     const now = new Date().toISOString();
+    const slotId = uuidv4();
     await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: SLOTS_SHEET,
+      range: `${SLOTS_SHEET}!A:K`,
       valueInputOption: 'USER_ENTERED',
       insertDataOption: 'INSERT_ROWS',
       requestBody: {
-        values: [[date, time, fromPlayer, 'reassigned', '', '', '', toPlayer, now]],
+        values: [[slotId, date, time, fromPlayer, 'reassigned', '', '', '', toPlayer, now]],
       },
     });
 

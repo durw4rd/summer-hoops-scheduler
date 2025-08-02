@@ -5,6 +5,7 @@ import Observability from '@launchdarkly/observability';
 import SessionReplay from '@launchdarkly/session-replay';
 import { ReactNode, useEffect, useState } from 'react';
 import { getDeviceType, detectBrowser, shouldOptimizeForPerformance } from '@/lib/utils';
+import packageJson from '../package.json';
 
 // Generate a unique session ID for this browser session
 const generateSessionId = () => {
@@ -63,8 +64,8 @@ function LaunchDarklyProviderContent({ children }: LaunchDarklyProviderProps) {
           context,
           options: {
             application: {
-                id: 'summer-hoops-app',
-                version: '1.16.0',
+                id: packageJson.name,
+                version: packageJson.version,
             },
             plugins: [
                 new Observability({

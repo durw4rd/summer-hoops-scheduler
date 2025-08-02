@@ -91,6 +91,7 @@ export default function SummerHoopsScheduler() {
   // Modal states
   const [swapModalOpen, setSwapModalOpen] = useState(false);
   const [swapSourceSlot, setSwapSourceSlot] = useState<string>("");
+  const [swapSourceSlotInfo, setSwapSourceSlotInfo] = useState<{ date: string; time: string; player: string } | null>(null);
   const [swapTarget, setSwapTarget] = useState<string>("");
   const [swapLoading, setSwapLoading] = useState(false);
   const [confirmationModal, setConfirmationModal] = useState<ConfirmationModalState | null>(null);
@@ -195,14 +196,27 @@ export default function SummerHoopsScheduler() {
     }
   };
 
-  const handleClaimSlot = async (date: string, time: string, player: string, claimer: string, sessionId: string): Promise<void> => {
+  const handleClaimSlot = async (slotId: string | null, date: string | null, time: string | null, claimer: string, sessionId: string): Promise<void> => {
     setSlotActionLoading(sessionId);
     try {
-      await fetch("/api/slots", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date, time, player: player || 'free spot', claimer }),
-      });
+      if (slotId) {
+        // Claim an existing offered slot
+        await fetch("/api/slots", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ slotId, claimer }),
+        });
+      } else if (date && time) {
+        // Claim a free spot
+        await fetch("/api/slots", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ date, time, claimer }),
+        });
+      } else {
+        throw new Error('Invalid claim parameters');
+      }
+      
       const res = await fetch("/api/slots");
       const json = await res.json();
       if (json.slots) {
@@ -215,13 +229,13 @@ export default function SummerHoopsScheduler() {
     }
   };
 
-  const handleRecallSlot = async (date: string, time: string, player: string, actionId: string): Promise<void> => {
+  const handleRecallSlot = async (slotId: string, actionId: string): Promise<void> => {
     setSlotActionLoading(actionId);
     try {
       await fetch("/api/slots", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date, time, player }),
+        body: JSON.stringify({ slotId }),
       });
       await fetchMarketplaceData();
     } finally {
@@ -247,18 +261,45 @@ export default function SummerHoopsScheduler() {
     }
   };
 
+  const handleAcceptSwap = async (slotId: string): Promise<void> => {
+    setAcceptSwapLoading(slotId);
+    try {
+      await fetch('/api/slots/swap', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          slotId,
+          acceptingPlayer: playerName,
+        }),
+      });
+      await fetchMarketplaceData();
+    } finally {
+      setAcceptSwapLoading(null);
+    }
+  };
+
   const handleRequestSwap = (slot: SlotData): void => {
     setSwapModalOpen(true);
-    setSwapSourceSlot(`${slot.Date}__${slot.Time}`);
+    // For schedule slots (no ID), use date/time as identifier
+    // For marketplace slots, use the ID
+    const sourceSlot = slot.ID || `${slot.Date}__${slot.Time}`;
+    setSwapSourceSlot(sourceSlot);
+    setSwapSourceSlotInfo({
+      date: slot.Date,
+      time: slot.Time,
+      player: slot.Player || playerName || ''
+    });
     setSwapTarget("");
   };
 
   const handleConfirmSwap = async (): Promise<void> => {
     if (!swapSourceSlot || !swapTarget || !playerName) return;
     setSwapLoading(true);
-    const [date, time] = swapSourceSlot.split("__");
-    const [requestedDate, requestedTime] = swapTarget.split("__");
+    
     try {
+      const [requestedDate, requestedTime] = swapTarget.split("__");
+      const [date, time] = swapSourceSlot.split("__");
+      
       await fetch("/api/slots/swap", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -270,6 +311,7 @@ export default function SummerHoopsScheduler() {
           requestedTime,
         }),
       });
+      
       setSwapModalOpen(false);
       setSwapSourceSlot("");
       setSwapTarget("");
@@ -308,18 +350,22 @@ export default function SummerHoopsScheduler() {
     if (!playerName) return [];
     const now = new Date();
     let sessions: Array<{ Date: string; Time: string; Day: string }> = [];
+    
     schedule.forEach((game) => {
       game.sessions.forEach((session) => {
         const [day, month] = game.date.split(".").map(Number);
         const [startHour] = session.time.split(":");
         const sessionDate = new Date(now.getFullYear(), month - 1, day, Number(startHour));
+        
         if (sessionDate < now) return;
         if (session.players.some((p: string) => p.toLowerCase() === playerName!.toLowerCase())) return;
-        const slotOffered = allSlots.find((slot: SlotData) => normalizeDate(slot.Date) === normalizeDate(game.date) && slot.Time.trim() === session.time.trim() && slot.Status === "offered");
-        if (slotOffered) return;
+        
+        // For swaps, we don't care if someone has offered a slot for this session
+        // The user should be able to target any future session they're not attending
         sessions.push({ Date: game.date, Time: session.time, Day: game.day });
       });
     });
+    
     return sessions;
   };
 
@@ -570,28 +616,7 @@ export default function SummerHoopsScheduler() {
                 slotActionLoading={slotActionLoading}
                 acceptSwapLoading={acceptSwapLoading}
                 handleRecallSlot={handleRecallSlot}
-                handleAcceptSwap={(swapSlot) => {
-                  let isUserInOfferingSession = false;
-                  for (const game of schedule) {
-                    if (normalizeDate(game.date) === normalizeDate(swapSlot.Date)) {
-                      for (const session of game.sessions) {
-                        if (session.time.trim() === swapSlot.Time.trim()) {
-                          if (session.players.some((p: string) => p.toLowerCase() === playerName!.toLowerCase())) {
-                            isUserInOfferingSession = true;
-                          }
-                        }
-                      }
-                    }
-                  }
-                  setConfirmationModal({
-                    open: true,
-                    slot: swapSlot,
-                    type: 'swap',
-                    alreadyInSession: isUserInOfferingSession,
-                  });
-                }}
-                handleOfferSlot={handleOfferSlot}
-                handleRequestSwap={handleRequestSwap}
+                handleAcceptSwap={handleAcceptSwap}
                 handleSettleSlot={handleSettleSlot}
                 showInactiveSlots={showInactiveSlots}
                 setShowInactiveSlots={setShowInactiveSlots}
@@ -660,6 +685,7 @@ export default function SummerHoopsScheduler() {
           open={swapModalOpen}
           onOpenChange={setSwapModalOpen}
           sourceSlot={swapSourceSlot}
+          sourceSlotInfo={swapSourceSlotInfo || undefined}
           target={swapTarget}
           onTargetChange={setSwapTarget}
           eligibleSessions={getEligibleTargetSessions()}
@@ -678,32 +704,26 @@ export default function SummerHoopsScheduler() {
           onConfirm={async () => {
             if (!confirmationModal) return;
             if (confirmationModal.type === 'claim' && confirmationModal.slot) {
-              handleClaimSlot(
-                confirmationModal.slot.Date,
-                confirmationModal.slot.Time,
-                confirmationModal.slot.Player || '',
-                playerName!,
-                confirmationModal.claimSessionId || ""
-              );
-            } else if (confirmationModal.type === 'swap' && confirmationModal.slot) {
-              setAcceptSwapLoading(`${confirmationModal.slot.Date}-${confirmationModal.slot.Time}-${confirmationModal.slot.Player}`);
-              try {
-                await fetch('/api/slots/swap', {
-                  method: 'PATCH',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    date: confirmationModal.slot.Date,
-                    time: confirmationModal.slot.Time,
-                    player: confirmationModal.slot.Player,
-                    requestedDate: confirmationModal.slot.RequestedDate,
-                    requestedTime: confirmationModal.slot.RequestedTime,
-                    acceptingPlayer: playerName,
-                  }),
-                });
-                await fetchMarketplaceData();
-              } finally {
-                setAcceptSwapLoading(null);
+              // For free spots, we pass date/time instead of slotId
+              if (confirmationModal.slot.Player === 'free spot') {
+                handleClaimSlot(
+                  null,
+                  confirmationModal.slot.Date,
+                  confirmationModal.slot.Time,
+                  playerName!,
+                  confirmationModal.claimSessionId || ""
+                );
+              } else {
+                handleClaimSlot(
+                  confirmationModal.slot.ID!,
+                  null,
+                  null,
+                  playerName!,
+                  confirmationModal.claimSessionId || ""
+                );
               }
+            } else if (confirmationModal.type === 'swap' && confirmationModal.slot) {
+              await handleAcceptSwap(confirmationModal.slot.ID!);
             }
             setConfirmationModal(null);
           }}

@@ -90,20 +90,36 @@ export async function offerSlotForGrabs({ date, time, player }: { date: string; 
   return { success: true, slotId };
 }
 
-export async function requestSlotSwap({ date, time, player, requestedDate, requestedTime }: { date: string; time: string; player: string; requestedDate: string; requestedTime: string; }) {
+export async function requestSlotSwapById({ slotId, requestedDate, requestedTime }: { slotId: string; requestedDate: string; requestedTime: string; }) {
+  const { row, rowNumber } = await findSlotById(slotId);
+  
+  const date = row[1]; // Date column (B)
+  const time = row[2]; // Time column (C)
+  const player = row[3]; // Player column (D)
+  const status = row[4]; // Status column (E)
+  
+  if (status !== 'offered') {
+    throw new Error('Slot must be offered to request swap');
+  }
+  
   const sheets = await getGoogleSheetsClient();
   const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
   const now = new Date().toISOString();
-  const slotId = generateSlotId();
-  await sheets.spreadsheets.values.append({
+  
+  // Update SwapRequested (F), RequestedDate (G), RequestedTime (H), Timestamp (J)
+  await sheets.spreadsheets.values.batchUpdate({
     spreadsheetId,
-    range: RANGE_SLOTS,
-    valueInputOption: 'USER_ENTERED',
-    insertDataOption: 'INSERT_ROWS',
     requestBody: {
-      values: [[slotId, date, time, player, 'offered', 'yes', requestedDate, requestedTime, '', now]],
+      valueInputOption: 'USER_ENTERED',
+      data: [
+        { range: `${SHEET_MARKETPLACE}!F${rowNumber}`, values: [['yes']] },
+        { range: `${SHEET_MARKETPLACE}!G${rowNumber}`, values: [[requestedDate]] },
+        { range: `${SHEET_MARKETPLACE}!H${rowNumber}`, values: [[requestedTime]] },
+        { range: `${SHEET_MARKETPLACE}!J${rowNumber}`, values: [[now]] },
+      ],
     },
   });
+  
   return { success: true, slotId };
 }
 
@@ -191,122 +207,45 @@ export async function claimSlotById({ slotId, claimer }: { slotId: string; claim
   return { success: true };
 }
 
-export async function claimSlot({ date, time, player, claimer }: { date: string; time: string; player: string; claimer: string }) {
+export async function claimFreeSpot({ date, time, claimer }: { date: string; time: string; claimer: string }) {
   const sheets = await getGoogleSheetsClient();
   const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
   const now = new Date().toISOString();
-
-  // If claiming a free spot (not an offered slot), just add an entry to Marketplace
-  if (player === 'free spot') {
-    const slotId = generateSlotId();
-    await sheets.spreadsheets.values.append({
-      spreadsheetId,
-      range: RANGE_SLOTS,
-      valueInputOption: 'USER_ENTERED',
-      insertDataOption: 'INSERT_ROWS',
-      requestBody: {
-        values: [[slotId, date, time, 'free spot', 'claimed', 'no', '', '', claimer, now]],
-      },
-    });
-    // Also update the Daily schedule sheet to add the claimer to the session's player list
-    const scheduleRes = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: RANGE_SCHEDULE,
-    });
-    const scheduleRows = scheduleRes.data.values || [];
-    // Helper to parse session details from column B
-    function parseSessionDetails(details: string) {
-      // Format: 'DD.MM / weekDay / HH:MM - HH:MM'
-      const [datePart, , timePart] = details.split(' / ');
-      return { date: datePart.trim(), time: timePart.trim() };
-    }
-    for (let i = 0; i < scheduleRows.length; i++) {
-      const [details, playerList] = scheduleRows[i];
-      if (!details) continue;
-      const { date: rowDate, time: rowTime } = parseSessionDetails(details);
-      if (normalizeDate(rowDate) === normalizeDate(date) && rowTime === time) {
-        // Append the claimer to the player list
-        let players = (playerList || '').split(',').map((p: string) => p.trim()).filter(Boolean);
-        players.push(claimer);
-        await sheets.spreadsheets.values.update({
-          spreadsheetId,
-          range: `${SHEET_DAILY_SCHEDULE}!C${i + SCHEDULE_START_ROW}`,
-          valueInputOption: 'USER_ENTERED',
-          requestBody: {
-            values: [[players.join(', ')]],
-          },
-        });
-        break;
-      }
-    }
-    return { success: true };
-  }
-
-  // Read all rows to find the first matching slot
-  const res = await sheets.spreadsheets.values.get({
+  const slotId = generateSlotId();
+  
+  // Add new entry to Marketplace for the claimed free spot
+  await sheets.spreadsheets.values.append({
     spreadsheetId,
     range: RANGE_SLOTS,
-  });
-  const values = res.data.values || [];
-  // Find header row and data rows
-  const header = values[0];
-  const rows = values.slice(1);
-  const idx = rows.findIndex(row =>
-    normalizeDate(row[0]) === normalizeDate(date) && row[1] === time && row[2] === player && row[3] === 'offered'
-  );
-  if (idx === -1) throw new Error('Slot not found or already claimed');
-  const rowNumber = idx + 2; // +2 for 1-based index and header
-  await sheets.spreadsheets.values.batchUpdate({
-    spreadsheetId,
+    valueInputOption: 'USER_ENTERED',
+    insertDataOption: 'INSERT_ROWS',
     requestBody: {
-      valueInputOption: 'USER_ENTERED',
-      data: [
-        {
-          range: `${SHEET_MARKETPLACE}!D${rowNumber}`,
-          values: [['claimed']],
-        },
-        {
-          range: `${SHEET_MARKETPLACE}!H${rowNumber}`,
-          values: [[claimer]],
-        },
-        {
-          range: `${SHEET_MARKETPLACE}!I${rowNumber}`,
-          values: [[now]],
-        },
-      ],
+      values: [[slotId, date, time, 'free spot', 'claimed', 'no', '', '', claimer, now]],
     },
   });
-
-  // --- Update Daily schedule sheet ---
+  
+  // Also update the Daily schedule sheet to add the claimer to the session's player list
   const scheduleRes = await sheets.spreadsheets.values.get({
     spreadsheetId,
     range: RANGE_SCHEDULE,
   });
   const scheduleRows = scheduleRes.data.values || [];
-
+  
   // Helper to parse session details from column B
   function parseSessionDetails(details: string) {
     // Format: 'DD.MM / weekDay / HH:MM - HH:MM'
     const [datePart, , timePart] = details.split(' / ');
     return { date: datePart.trim(), time: timePart.trim() };
   }
-
-  // Find the first row that matches date and time
-  let found = false;
+  
   for (let i = 0; i < scheduleRows.length; i++) {
     const [details, playerList] = scheduleRows[i];
     if (!details) continue;
     const { date: rowDate, time: rowTime } = parseSessionDetails(details);
     if (normalizeDate(rowDate) === normalizeDate(date) && rowTime === time) {
-      // Update player list: remove offering player, add claimer
+      // Append the claimer to the player list
       let players = (playerList || '').split(',').map((p: string) => p.trim()).filter(Boolean);
-      const playerIdx = players.findIndex((p: string) => p.toLowerCase() === player.toLowerCase());
-      if (playerIdx !== -1) {
-        players.splice(playerIdx, 1, claimer); // Replace offering player with claimer
-      } else {
-        players.push(claimer); // If not found, just add
-      }
-      // Write back the updated player list
+      players.push(claimer);
       await sheets.spreadsheets.values.update({
         spreadsheetId,
         range: `${SHEET_DAILY_SCHEDULE}!C${i + SCHEDULE_START_ROW}`,
@@ -315,13 +254,11 @@ export async function claimSlot({ date, time, player, claimer }: { date: string;
           values: [[players.join(', ')]],
         },
       });
-      found = true;
       break;
     }
   }
-  // Optionally, could throw if not found, but for now just proceed
-
-  return { success: true };
+  
+  return { success: true, slotId };
 }
 
 export async function retractSlotById({ slotId }: { slotId: string }) {
@@ -359,46 +296,7 @@ export async function retractSlotById({ slotId }: { slotId: string }) {
   return { success: true };
 }
 
-export async function retractSlot({ date, time, player }: { date: string; time: string; player: string }) {
-  const sheets = await getGoogleSheetsClient();
-  const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
-  // Read all rows to find the first matching slot
-  const res = await sheets.spreadsheets.values.get({
-    spreadsheetId,
-    range: RANGE_SLOTS,
-  });
-  const values = res.data.values || [];
-  // Find header row and data rows
-  const header = values[0];
-  const rows = values.slice(1);
-  const idx = rows.findIndex(row =>
-    normalizeDate(row[0]) === normalizeDate(date) && row[1] === time && row[2] === player && row[3] === 'offered'
-  );
-  if (idx === -1) throw new Error('Slot not found or not offered');
-  const rowNumber = idx + 2; // +2 for 1-based index and header
-  const now = new Date().toISOString();
-  await sheets.spreadsheets.values.batchUpdate({
-    spreadsheetId,
-    requestBody: {
-      valueInputOption: 'USER_ENTERED',
-      data: [
-        {
-          range: `${SHEET_MARKETPLACE}!D${rowNumber}`,
-          values: [['retracted']],
-        },
-        {
-          range: `${SHEET_MARKETPLACE}!H${rowNumber}`,
-          values: [['']],
-        },
-        {
-          range: `${SHEET_MARKETPLACE}!I${rowNumber}`,
-          values: [[now]],
-        },
-      ],
-    },
-  });
-  return { success: true };
-}
+
 
 export async function settleSlotById({ slotId, requestingUser, adminMode = false }: { slotId: string; requestingUser: string; adminMode?: boolean }) {
   const { row, rowNumber } = await findSlotById(slotId);
@@ -447,70 +345,6 @@ export async function settleSlotById({ slotId, requestingUser, adminMode = false
       data: [
         {
           range: `${SHEET_MARKETPLACE}!K${rowNumber}`,
-          values: [[newSettledValue]],
-        },
-      ],
-    },
-  });
-  return { success: true, settled: newSettledValue === 'yes' };
-}
-
-export async function settleSlot({ date, time, player, requestingUser, adminMode = false }: { date: string; time: string; player: string; requestingUser: string; adminMode?: boolean }) {
-  const sheets = await getGoogleSheetsClient();
-  const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
-  // Read all rows to find the matching slot
-  const res = await sheets.spreadsheets.values.get({
-    spreadsheetId,
-    range: RANGE_SLOTS,
-  });
-  const values = res.data.values || [];
-  const header = values[0];
-  const rows = values.slice(1);
-  const idx = rows.findIndex(row =>
-    normalizeDate(row[0]) === normalizeDate(date) && row[1] === time && row[2] === player
-  );
-  if (idx === -1) throw new Error('Slot not found');
-  
-  const row = rows[idx];
-  const status = row[3]; // Status column (D)
-  const swapRequested = row[4]; // SwapRequested column (E)
-  const settled = row[9]; // Settled column (J)
-  
-  // Validate that slot can be settled
-  if (!['claimed', 'reassigned', 'admin-reassigned'].includes(status)) {
-    throw new Error('Slot must be claimed, reassigned, or admin-reassigned to be settled');
-  }
-  
-  // Exclude swapped slots
-  if (swapRequested === 'yes') {
-    throw new Error('Swapped slots cannot be settled');
-  }
-  
-  // Check if slot is in the past
-  const [day, month] = date.split('.').map(Number);
-  const [hour, minute] = time.split(':').map(Number);
-  const slotDate = new Date(new Date().getFullYear(), month - 1, day, hour, minute);
-  const now = new Date();
-  
-  if (slotDate > now) {
-    throw new Error('Only past slots can be settled');
-  }
-  
-  // Check permissions - only original owner or admin can settle
-  if (!adminMode && requestingUser !== player) {
-    throw new Error('Only the original slot owner or admins can settle slots');
-  }
-  
-  const rowNumber = idx + 2; // +2 for 1-based index and header
-  const newSettledValue = settled === 'yes' ? 'no' : 'yes';
-  
-  await sheets.spreadsheets.values.batchUpdate({
-    spreadsheetId,
-    requestBody: {
-      valueInputOption: 'USER_ENTERED',
-      data: [
-        {
-          range: `${SHEET_MARKETPLACE}!J${rowNumber}`,
           values: [[newSettledValue]],
         },
       ],
@@ -705,44 +539,39 @@ export async function getAllSlots() {
   });
 }
 
-export async function acceptSlotSwap({ date, time, player, requestedDate, requestedTime, acceptingPlayer }: { date: string; time: string; player: string; requestedDate: string; requestedTime: string; acceptingPlayer: string }) {
+export async function acceptSlotSwapById({ slotId, acceptingPlayer }: { slotId: string; acceptingPlayer: string }) {
+  const { row, rowNumber } = await findSlotById(slotId);
+  
+  const date = row[1]; // Date column (B)
+  const time = row[2]; // Time column (C)
+  const player = row[3]; // Player column (D)
+  const status = row[4]; // Status column (E)
+  const swapRequested = row[5]; // SwapRequested column (F)
+  const requestedDate = row[6]; // RequestedDate column (G)
+  const requestedTime = row[7]; // RequestedTime column (H)
+  
+  if (status !== 'offered' || swapRequested !== 'yes') {
+    throw new Error('Slot must be offered with swap requested to accept swap');
+  }
+  
   const sheets = await getGoogleSheetsClient();
   const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
-  // Find the swap request row
-  const res = await sheets.spreadsheets.values.get({
-    spreadsheetId,
-    range: RANGE_SLOTS,
-  });
-  const values = res.data.values || [];
-  const header = values[0];
-  const rows = values.slice(1);
-  const idx = rows.findIndex(row =>
-    normalizeDate(row[0]) === normalizeDate(date) &&
-    row[1] === time &&
-    row[2] === player &&
-    row[3] === 'offered' &&
-    row[4] === 'yes' &&
-    normalizeDate(row[5]) === normalizeDate(requestedDate) &&
-    row[6] === requestedTime
-  );
-  if (idx === -1) throw new Error('Swap request not found');
-  const rowNumber = idx + 2; // +2 for 1-based index and header
   const now = new Date().toISOString();
-  // Update Status (D), ClaimedBy (H), Timestamp (I)
+  
+  // Update Status (E), ClaimedBy (I), Timestamp (J)
   await sheets.spreadsheets.values.batchUpdate({
     spreadsheetId,
     requestBody: {
       valueInputOption: 'USER_ENTERED',
       data: [
-        { range: `${SHEET_MARKETPLACE}!D${rowNumber}`, values: [['claimed']] },
-        { range: `${SHEET_MARKETPLACE}!H${rowNumber}`, values: [[acceptingPlayer]] },
-        { range: `${SHEET_MARKETPLACE}!I${rowNumber}`, values: [[now]] },
+        { range: `${SHEET_MARKETPLACE}!E${rowNumber}`, values: [['claimed']] },
+        { range: `${SHEET_MARKETPLACE}!I${rowNumber}`, values: [[acceptingPlayer]] },
+        { range: `${SHEET_MARKETPLACE}!J${rowNumber}`, values: [[now]] },
       ],
     },
   });
 
   // --- Swap players in Daily schedule sheet ---
-  // Fetch the relevant range (B5:C28)
   const scheduleRes = await sheets.spreadsheets.values.get({
     spreadsheetId,
     range: RANGE_SCHEDULE,
@@ -806,4 +635,24 @@ export async function acceptSlotSwap({ date, time, player, requestedDate, reques
   });
 
   return { success: true };
+}
+
+export async function requestSlotSwapFromSchedule({ date, time, player, requestedDate, requestedTime }: { date: string; time: string; player: string; requestedDate: string; requestedTime: string; }) {
+  const sheets = await getGoogleSheetsClient();
+  const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
+  const now = new Date().toISOString();
+  const slotId = generateSlotId();
+  
+  // First, create a marketplace entry for the slot being offered for swap
+  await sheets.spreadsheets.values.append({
+    spreadsheetId,
+    range: RANGE_SLOTS,
+    valueInputOption: 'USER_ENTERED',
+    insertDataOption: 'INSERT_ROWS',
+    requestBody: {
+      values: [[slotId, date, time, player, 'offered', 'yes', requestedDate, requestedTime, '', now]],
+    },
+  });
+  
+  return { success: true, slotId };
 }

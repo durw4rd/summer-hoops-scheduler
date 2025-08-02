@@ -13,11 +13,9 @@ interface MarketplaceTabProps {
   userMapping: Record<string, { email: string; color?: string }>;
   slotActionLoading: string | null;
   acceptSwapLoading: string | null;
-  handleRecallSlot: (date: string, time: string, player: string, actionId: string) => void;
-  handleAcceptSwap: (slot: any) => void;
-  handleOfferSlot: (date: string, time: string, player: string, sessionId: string) => void;
-  handleRequestSwap: (slot: any) => void;
-  handleSettleSlot?: (date: string, time: string, player: string) => void;
+  handleRecallSlot: (slotId: string, actionId: string) => void;
+  handleAcceptSwap: (slotId: string) => void;
+  handleSettleSlot?: (slotId: string) => void;
   showInactiveSlots: boolean;
   setShowInactiveSlots: (v: (prev: boolean) => boolean) => void;
   showOnlyMine: boolean;
@@ -40,8 +38,6 @@ const MarketplaceTab: React.FC<MarketplaceTabProps> = ({
   acceptSwapLoading,
   handleRecallSlot,
   handleAcceptSwap,
-  handleOfferSlot,
-  handleRequestSwap,
   handleSettleSlot,
   showInactiveSlots,
   setShowInactiveSlots,
@@ -332,8 +328,6 @@ const MarketplaceTab: React.FC<MarketplaceTabProps> = ({
                           acceptSwapLoading={acceptSwapLoading}
                           handleRecallSlot={handleRecallSlot}
                           handleAcceptSwap={handleAcceptSwap}
-                          handleOfferSlot={handleOfferSlot}
-                          handleRequestSwap={handleRequestSwap}
                           handleSettleSlot={handleSettleSlot}
                           isOwner={isOwner}
                           isInactive={isInactive}

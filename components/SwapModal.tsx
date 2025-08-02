@@ -13,6 +13,7 @@ interface SwapModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   sourceSlot: string;
+  sourceSlotInfo?: { date: string; time: string; player: string };
   target: string;
   onTargetChange: (value: string) => void;
   eligibleSessions: SessionOption[];
@@ -24,6 +25,7 @@ export default function SwapModal({
   open,
   onOpenChange,
   sourceSlot,
+  sourceSlotInfo,
   target,
   onTargetChange,
   eligibleSessions,
@@ -44,7 +46,12 @@ export default function SwapModal({
           {sourceSlot && (
             <div className="flex items-center gap-2">
               <input type="radio" checked readOnly className="mr-2" />
-              <span>{sourceSlot.replace(/__/g, ' / ')}</span>
+              <span>
+                {sourceSlotInfo 
+                  ? `${sourceSlotInfo.date} / ${sourceSlotInfo.time} (${sourceSlotInfo.player})`
+                  : sourceSlot.replace(/__/g, ' / ')
+                }
+              </span>
             </div>
           )}
         </div>
