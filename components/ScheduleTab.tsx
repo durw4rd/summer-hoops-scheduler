@@ -1,8 +1,7 @@
 import { Button } from "@/components/ui/button";
 import ScheduleCard from "@/components/ScheduleCard";
 import React, { useState, useEffect } from "react";
-import ReassignSlotModal from "@/components/ReassignSlotModal";
-import AdminReassignModal from "@/components/AdminReassignModal";
+import UnifiedReassignModal from "@/components/UnifiedReassignModal";
 import FilterBar, { FilterItem } from "@/components/ui/filter-bar";
 import { getStorageKey, saveToStorage, loadFromStorage } from "@/lib/persistence";
 import { normalizeDate } from "@/lib/utils";
@@ -50,13 +49,14 @@ const ScheduleTab: React.FC<ScheduleTabProps> = ({
   onScheduleRefresh,
   adminMode = false,
 }) => {
+  // Unified reassignment state
   const [reassignModalOpen, setReassignModalOpen] = useState(false);
   const [reassignSession, setReassignSession] = useState<{ date: string; time: string; currentPlayer: string } | null>(null);
   const [reassignLoading, setReassignLoading] = useState(false);
   const [reassignError, setReassignError] = useState<string | null>(null);
   const [reassignSelectedPlayer, setReassignSelectedPlayer] = useState<string>("");
-  const [reassignConfirm, setReassignConfirm] = useState(false);
   const [reassignWarn, setReassignWarn] = useState(false);
+  const [reassignConfirm, setReassignConfirm] = useState(false);
 
   // Admin reassignment state
   const [adminReassignModalOpen, setAdminReassignModalOpen] = useState(false);
@@ -64,8 +64,8 @@ const ScheduleTab: React.FC<ScheduleTabProps> = ({
   const [adminReassignLoading, setAdminReassignLoading] = useState(false);
   const [adminReassignError, setAdminReassignError] = useState<string | null>(null);
   const [adminReassignSelectedPlayer, setAdminReassignSelectedPlayer] = useState<string>("");
-  const [adminReassignConfirm, setAdminReassignConfirm] = useState(false);
   const [adminReassignWarn, setAdminReassignWarn] = useState(false);
+  const [adminReassignConfirm, setAdminReassignConfirm] = useState(false);
 
   // Track if component has mounted to prevent hydration mismatches
   const [hasMounted, setHasMounted] = useState(false);
@@ -113,7 +113,25 @@ const ScheduleTab: React.FC<ScheduleTabProps> = ({
     }
   }, [hasMounted, showAll, showPast, condensedMode, loggedInUser?.user?.email]);
 
+  // Helper to check if current user is a participant in a session
+  function isUserParticipantInSession(date: string, time: string) {
+    for (const game of scheduleToDisplay) {
+      if (normalizeDate(game.date) === normalizeDate(date)) {
+        for (const session of game.sessions) {
+          if (session.time.trim() === time.trim()) {
+            return session.players.some((p: string) => p.toLowerCase() === playerName?.toLowerCase());
+          }
+        }
+      }
+    }
+    return false;
+  }
+
   function handleReassignClick(sessionInfo: { date: string; time: string; currentPlayer: string }) {
+    // Only allow player reassignment if user is a participant in this session
+    if (!isUserParticipantInSession(sessionInfo.date, sessionInfo.time)) {
+      return; // Don't open modal if user is not eligible
+    }
     setReassignSession(sessionInfo);
     setReassignModalOpen(true);
     setReassignSelectedPlayer("");
@@ -123,6 +141,10 @@ const ScheduleTab: React.FC<ScheduleTabProps> = ({
   }
 
   function handleAdminReassignClick(sessionInfo: { date: string; time: string; currentPlayer: string }) {
+    // Only allow admin reassignment if admin mode is enabled AND user is not eligible for player reassignment
+    if (!adminMode || isUserParticipantInSession(sessionInfo.date, sessionInfo.time)) {
+      return; // Don't open modal if not admin or if user is eligible for player reassignment
+    }
     setAdminReassignSession(sessionInfo);
     setAdminReassignModalOpen(true);
     setAdminReassignSelectedPlayer("");
@@ -316,7 +338,7 @@ const ScheduleTab: React.FC<ScheduleTabProps> = ({
         </div>
       )}
       {reassignSession && (
-        <ReassignSlotModal
+        <UnifiedReassignModal
           open={reassignModalOpen}
           onOpenChange={setReassignModalOpen}
           sessionInfo={reassignSession}
@@ -327,22 +349,26 @@ const ScheduleTab: React.FC<ScheduleTabProps> = ({
           selectedPlayer={reassignSelectedPlayer}
           warn={reassignWarn}
           onConfirm={() => handleReassign(reassignSelectedPlayer)}
-          onPlayerSelect={(player) => setReassignSelectedPlayer(player)}
+          onPlayerSelect={(player: string) => setReassignSelectedPlayer(player)}
+          isPlayerEligible={true}
+          isAdmin={false}
         />
       )}
       {adminReassignSession && (
-        <AdminReassignModal
+        <UnifiedReassignModal
           open={adminReassignModalOpen}
           onOpenChange={setAdminReassignModalOpen}
           sessionInfo={adminReassignSession}
           userMapping={userMapping}
-          onAdminReassign={handleAdminReassign}
+          onReassign={handleAdminReassign}
           loading={adminReassignLoading}
           error={adminReassignError}
           selectedPlayer={adminReassignSelectedPlayer}
           warn={adminReassignWarn}
           onConfirm={() => handleAdminReassign(adminReassignSelectedPlayer)}
-          onPlayerSelect={(player) => setAdminReassignSelectedPlayer(player)}
+          onPlayerSelect={(player: string) => setAdminReassignSelectedPlayer(player)}
+          isPlayerEligible={false}
+          isAdmin={true}
         />
       )}
     </>

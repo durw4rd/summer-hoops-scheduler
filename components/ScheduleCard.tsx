@@ -255,7 +255,8 @@ export default function ScheduleCard({
                       </Button>
                     </>
                   )}
-                  {onReassignClick && (
+                  {/* Only show reassign button if user is a participant in this session */}
+                  {onReassignClick && isUserParticipant && (
                     <Button
                       size="sm"
                       variant="outline"

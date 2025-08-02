@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requestSlotSwapById, requestSlotSwapFromSchedule, acceptSlotSwapById } from "@/lib/googleSheets";
+import { requestSlotSwapFromSchedule, acceptSlotSwapById } from "@/lib/googleSheets";
 
 export async function POST(req: Request) {
   try {

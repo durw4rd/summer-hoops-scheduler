@@ -90,38 +90,7 @@ export async function offerSlotForGrabs({ date, time, player }: { date: string; 
   return { success: true, slotId };
 }
 
-export async function requestSlotSwapById({ slotId, requestedDate, requestedTime }: { slotId: string; requestedDate: string; requestedTime: string; }) {
-  const { row, rowNumber } = await findSlotById(slotId);
-  
-  const date = row[1]; // Date column (B)
-  const time = row[2]; // Time column (C)
-  const player = row[3]; // Player column (D)
-  const status = row[4]; // Status column (E)
-  
-  if (status !== 'offered') {
-    throw new Error('Slot must be offered to request swap');
-  }
-  
-  const sheets = await getGoogleSheetsClient();
-  const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
-  const now = new Date().toISOString();
-  
-  // Update SwapRequested (F), RequestedDate (G), RequestedTime (H), Timestamp (J)
-  await sheets.spreadsheets.values.batchUpdate({
-    spreadsheetId,
-    requestBody: {
-      valueInputOption: 'USER_ENTERED',
-      data: [
-        { range: `${SHEET_MARKETPLACE}!F${rowNumber}`, values: [['yes']] },
-        { range: `${SHEET_MARKETPLACE}!G${rowNumber}`, values: [[requestedDate]] },
-        { range: `${SHEET_MARKETPLACE}!H${rowNumber}`, values: [[requestedTime]] },
-        { range: `${SHEET_MARKETPLACE}!J${rowNumber}`, values: [[now]] },
-      ],
-    },
-  });
-  
-  return { success: true, slotId };
-}
+
 
 export async function claimSlotById({ slotId, claimer }: { slotId: string; claimer: string }) {
   const { row, rowNumber } = await findSlotById(slotId);
