@@ -1,5 +1,6 @@
 import { google } from "googleapis";
 import { normalizeDate } from "@/lib/utils";
+import { v4 as uuidv4 } from 'uuid';
 
 // Sheet and range constants
 /** Name of the daily schedule sheet */
@@ -10,12 +11,19 @@ const SHEET_MARKETPLACE = "Marketplace";
 const SHEET_USER_MAPPING = "User mapping";
 /** Range for the schedule (update as needed for new rows) */
 const RANGE_SCHEDULE = `${SHEET_DAILY_SCHEDULE}!B5:D`;
-/** Range for the marketplace sheet */
-const RANGE_SLOTS = `${SHEET_MARKETPLACE}!A:J`;
+/** Range for the marketplace sheet (now includes ID column) */
+const RANGE_SLOTS = `${SHEET_MARKETPLACE}!A:K`;
 /** Range for the user mapping sheet */
 const RANGE_USER_MAPPING = `${SHEET_USER_MAPPING}!A2:C`;
 /** The starting row for the schedule (for C column updates) */
 const SCHEDULE_START_ROW = 5;
+
+/**
+ * Generates a unique ID for a slot
+ */
+function generateSlotId(): string {
+  return uuidv4();
+}
 
 export async function getGoogleSheetsClient() {
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
@@ -69,31 +77,117 @@ export async function offerSlotForGrabs({ date, time, player }: { date: string; 
   const sheets = await getGoogleSheetsClient();
   const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
   const now = new Date().toISOString();
+  const slotId = generateSlotId();
   await sheets.spreadsheets.values.append({
     spreadsheetId,
     range: RANGE_SLOTS,
     valueInputOption: 'USER_ENTERED',
     insertDataOption: 'INSERT_ROWS',
     requestBody: {
-      values: [[date, time, player, 'offered', 'no', '', '', '', now]],
+      values: [[slotId, date, time, player, 'offered', 'no', '', '', '', now]],
     },
   });
-  return { success: true };
+  return { success: true, slotId };
 }
 
 export async function requestSlotSwap({ date, time, player, requestedDate, requestedTime }: { date: string; time: string; player: string; requestedDate: string; requestedTime: string; }) {
   const sheets = await getGoogleSheetsClient();
   const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
   const now = new Date().toISOString();
+  const slotId = generateSlotId();
   await sheets.spreadsheets.values.append({
     spreadsheetId,
     range: RANGE_SLOTS,
     valueInputOption: 'USER_ENTERED',
     insertDataOption: 'INSERT_ROWS',
     requestBody: {
-      values: [[date, time, player, 'offered', 'yes', requestedDate, requestedTime, '', now]],
+      values: [[slotId, date, time, player, 'offered', 'yes', requestedDate, requestedTime, '', now]],
     },
   });
+  return { success: true, slotId };
+}
+
+export async function claimSlotById({ slotId, claimer }: { slotId: string; claimer: string }) {
+  const { row, rowNumber } = await findSlotById(slotId);
+  
+  const date = row[1]; // Date column (B)
+  const time = row[2]; // Time column (C)
+  const player = row[3]; // Player column (D)
+  const status = row[4]; // Status column (E)
+  
+  if (status !== 'offered') {
+    throw new Error('Slot must be offered to be claimed');
+  }
+  
+  const sheets = await getGoogleSheetsClient();
+  const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
+  const now = new Date().toISOString();
+  
+  await sheets.spreadsheets.values.batchUpdate({
+    spreadsheetId,
+    requestBody: {
+      valueInputOption: 'USER_ENTERED',
+      data: [
+        {
+          range: `${SHEET_MARKETPLACE}!E${rowNumber}`,
+          values: [['claimed']],
+        },
+        {
+          range: `${SHEET_MARKETPLACE}!I${rowNumber}`,
+          values: [[claimer]],
+        },
+        {
+          range: `${SHEET_MARKETPLACE}!J${rowNumber}`,
+          values: [[now]],
+        },
+      ],
+    },
+  });
+
+  // --- Update Daily schedule sheet ---
+  const scheduleRes = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: RANGE_SCHEDULE,
+  });
+  const scheduleRows = scheduleRes.data.values || [];
+
+  // Helper to parse session details from column B
+  function parseSessionDetails(details: string) {
+    // Format: 'DD.MM / weekDay / HH:MM - HH:MM'
+    const [datePart, , timePart] = details.split(' / ');
+    return { date: datePart.trim(), time: timePart.trim() };
+  }
+
+  // Find the first row that matches date and time
+  let found = false;
+  for (let i = 0; i < scheduleRows.length; i++) {
+    const [details, playerList] = scheduleRows[i];
+    if (!details) continue;
+    const { date: rowDate, time: rowTime } = parseSessionDetails(details);
+    if (normalizeDate(rowDate) === normalizeDate(date) && rowTime === time) {
+      // Update player list: remove offering player, add claimer
+      let players = (playerList || '').split(',').map((p: string) => p.trim()).filter(Boolean);
+      const playerIdx = players.findIndex((p: string) => p.toLowerCase() === player.toLowerCase());
+      if (playerIdx !== -1) {
+        players.splice(playerIdx, 1, claimer); // Replace offering player with claimer
+      } else {
+        players.push(claimer); // If not found, just add
+      }
+      // Write back the updated player list
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `${SHEET_DAILY_SCHEDULE}!C${i + SCHEDULE_START_ROW}`,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: {
+          values: [[players.join(', ')]],
+        },
+      });
+      found = true;
+      break;
+    }
+  }
+  // Optionally, could throw if not found, but for now just proceed
+
   return { success: true };
 }
 
@@ -104,13 +198,14 @@ export async function claimSlot({ date, time, player, claimer }: { date: string;
 
   // If claiming a free spot (not an offered slot), just add an entry to Marketplace
   if (player === 'free spot') {
+    const slotId = generateSlotId();
     await sheets.spreadsheets.values.append({
       spreadsheetId,
       range: RANGE_SLOTS,
       valueInputOption: 'USER_ENTERED',
       insertDataOption: 'INSERT_ROWS',
       requestBody: {
-        values: [[date, time, 'free spot', 'claimed', 'no', '', '', claimer, now]],
+        values: [[slotId, date, time, 'free spot', 'claimed', 'no', '', '', claimer, now]],
       },
     });
     // Also update the Daily schedule sheet to add the claimer to the session's player list
@@ -229,6 +324,41 @@ export async function claimSlot({ date, time, player, claimer }: { date: string;
   return { success: true };
 }
 
+export async function retractSlotById({ slotId }: { slotId: string }) {
+  const { row, rowNumber } = await findSlotById(slotId);
+  
+  const status = row[4]; // Status column (E)
+  if (status !== 'offered') {
+    throw new Error('Slot must be offered to be retracted');
+  }
+  
+  const sheets = await getGoogleSheetsClient();
+  const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
+  const now = new Date().toISOString();
+  
+  await sheets.spreadsheets.values.batchUpdate({
+    spreadsheetId,
+    requestBody: {
+      valueInputOption: 'USER_ENTERED',
+      data: [
+        {
+          range: `${SHEET_MARKETPLACE}!E${rowNumber}`,
+          values: [['retracted']],
+        },
+        {
+          range: `${SHEET_MARKETPLACE}!I${rowNumber}`,
+          values: [['']],
+        },
+        {
+          range: `${SHEET_MARKETPLACE}!J${rowNumber}`,
+          values: [[now]],
+        },
+      ],
+    },
+  });
+  return { success: true };
+}
+
 export async function retractSlot({ date, time, player }: { date: string; time: string; player: string }) {
   const sheets = await getGoogleSheetsClient();
   const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
@@ -268,6 +398,61 @@ export async function retractSlot({ date, time, player }: { date: string; time: 
     },
   });
   return { success: true };
+}
+
+export async function settleSlotById({ slotId, requestingUser, adminMode = false }: { slotId: string; requestingUser: string; adminMode?: boolean }) {
+  const { row, rowNumber } = await findSlotById(slotId);
+  
+  const date = row[1]; // Date column (B)
+  const time = row[2]; // Time column (C)
+  const player = row[3]; // Player column (D)
+  const status = row[4]; // Status column (E)
+  const swapRequested = row[5]; // SwapRequested column (F)
+  const settled = row[10]; // Settled column (K)
+  
+  // Validate that slot can be settled
+  if (!['claimed', 'reassigned', 'admin-reassigned'].includes(status)) {
+    throw new Error('Slot must be claimed, reassigned, or admin-reassigned to be settled');
+  }
+  
+  // Exclude swapped slots
+  if (swapRequested === 'yes') {
+    throw new Error('Swapped slots cannot be settled');
+  }
+  
+  // Check if slot is in the past
+  const [day, month] = date.split('.').map(Number);
+  const [hour, minute] = time.split(':').map(Number);
+  const slotDate = new Date(new Date().getFullYear(), month - 1, day, hour, minute);
+  const now = new Date();
+  
+  if (slotDate > now) {
+    throw new Error('Only past slots can be settled');
+  }
+  
+  // Check permissions - only original owner or admin can settle
+  if (!adminMode && requestingUser !== player) {
+    throw new Error('Only the original slot owner or admins can settle slots');
+  }
+  
+  const newSettledValue = settled === 'yes' ? 'no' : 'yes';
+  
+  const sheets = await getGoogleSheetsClient();
+  const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
+  
+  await sheets.spreadsheets.values.batchUpdate({
+    spreadsheetId,
+    requestBody: {
+      valueInputOption: 'USER_ENTERED',
+      data: [
+        {
+          range: `${SHEET_MARKETPLACE}!K${rowNumber}`,
+          values: [[newSettledValue]],
+        },
+      ],
+    },
+  });
+  return { success: true, settled: newSettledValue === 'yes' };
 }
 
 export async function settleSlot({ date, time, player, requestingUser, adminMode = false }: { date: string; time: string; player: string; requestingUser: string; adminMode?: boolean }) {
@@ -332,6 +517,69 @@ export async function settleSlot({ date, time, player, requestingUser, adminMode
     },
   });
   return { success: true, settled: newSettledValue === 'yes' };
+}
+
+/**
+ * Finds a slot by its unique ID
+ */
+export async function findSlotById(slotId: string) {
+  const sheets = await getGoogleSheetsClient();
+  const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: RANGE_SLOTS,
+  });
+  const values = res.data.values || [];
+  const header = values[0];
+  const rows = values.slice(1);
+  const idx = rows.findIndex(row => row[0] === slotId);
+  if (idx === -1) throw new Error('Slot not found');
+  return { row: rows[idx], rowNumber: idx + 2, header };
+}
+
+/**
+ * Migrates existing slots to include unique IDs
+ * This function adds IDs to slots that don't have them
+ */
+export async function migrateExistingSlots() {
+  const sheets = await getGoogleSheetsClient();
+  const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
+  
+  // Read all existing slots
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: RANGE_SLOTS,
+  });
+  const values = res.data.values || [];
+  const header = values[0];
+  const rows = values.slice(1);
+  
+  // Generate IDs for slots that don't have them
+  const updates: any[] = [];
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    // Check if slot already has an ID (column A)
+    if (!row[0] || row[0] === '') {
+      const newId = generateSlotId();
+      updates.push({
+        range: `${SHEET_MARKETPLACE}!A${i + 2}`, // +2 for header and 1-based index
+        values: [[newId]]
+      });
+    }
+  }
+  
+  // Apply all updates
+  if (updates.length > 0) {
+    await sheets.spreadsheets.values.batchUpdate({
+      spreadsheetId,
+      requestBody: {
+        valueInputOption: 'RAW',
+        data: updates
+      }
+    });
+  }
+  
+  return { success: true, updatedCount: updates.length };
 }
 
 export async function updateExpiredSlots(expiredSlots: any[]) {

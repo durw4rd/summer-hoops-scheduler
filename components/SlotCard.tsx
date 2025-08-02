@@ -17,7 +17,7 @@ interface SlotCardProps {
   handleAcceptSwap: (slot: any) => void;
   handleOfferSlot: (date: string, time: string, player: string, sessionId: string) => void;
   handleRequestSwap: (slot: any) => void;
-  handleSettleSlot?: (date: string, time: string, player: string) => void;
+  handleSettleSlot?: (slotId: string) => void;
   isOwner: boolean;
   isInactive: boolean;
   isUserInSession: boolean;
@@ -293,7 +293,7 @@ export default function SlotCard({
             size="sm"
             variant={statusInfo.isSettled ? "outline" : "secondary"}
             className={statusInfo.isSettled ? "" : "bg-green-600 hover:bg-green-700 text-white"}
-            onClick={() => handleSettleSlot(slot.Date, slot.Time, slot.Player)}
+            onClick={() => handleSettleSlot(slot.ID)}
           >
             {statusInfo.isSettled ? "Mark as Unsettled" : "Mark as Settled"}
           </Button>

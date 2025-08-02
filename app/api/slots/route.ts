@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAvailableSlots, offerSlotForGrabs, claimSlot, retractSlot, getAllSlots, requestSlotSwap, acceptSlotSwap } from "@/lib/googleSheets";
+import { getAvailableSlots, offerSlotForGrabs, claimSlot, claimSlotById, retractSlot, retractSlotById, getAllSlots, requestSlotSwap, acceptSlotSwap } from "@/lib/googleSheets";
 
 export async function GET() {
   try {
@@ -25,12 +25,24 @@ export async function POST(req: Request) {
 
 export async function PATCH(req: Request) {
   try {
-    const { date, time, player, claimer } = await req.json();
-    if (!date || !time || !player || !claimer) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    const { slotId, date, time, player, claimer } = await req.json();
+    
+    // Support both old and new approaches for backward compatibility
+    if (slotId) {
+      // New ID-based approach
+      if (!slotId || !claimer) {
+        return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+      }
+      const result = await claimSlotById({ slotId, claimer });
+      return NextResponse.json(result);
+    } else {
+      // Old approach for backward compatibility
+      if (!date || !time || !player || !claimer) {
+        return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+      }
+      const result = await claimSlot({ date, time, player, claimer });
+      return NextResponse.json(result);
     }
-    const result = await claimSlot({ date, time, player, claimer });
-    return NextResponse.json(result);
   } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 500 });
   }
@@ -38,12 +50,24 @@ export async function PATCH(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
-    const { date, time, player } = await req.json();
-    if (!date || !time || !player) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    const { slotId, date, time, player } = await req.json();
+    
+    // Support both old and new approaches for backward compatibility
+    if (slotId) {
+      // New ID-based approach
+      if (!slotId) {
+        return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+      }
+      const result = await retractSlotById({ slotId });
+      return NextResponse.json(result);
+    } else {
+      // Old approach for backward compatibility
+      if (!date || !time || !player) {
+        return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+      }
+      const result = await retractSlot({ date, time, player });
+      return NextResponse.json(result);
     }
-    const result = await retractSlot({ date, time, player });
-    return NextResponse.json(result);
   } catch (error) {
     return NextResponse.json({ error: (error as Error).message }, { status: 500 });
   }

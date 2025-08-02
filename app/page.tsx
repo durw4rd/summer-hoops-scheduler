@@ -37,6 +37,7 @@ interface UserMapping {
 }
 
 interface SlotData {
+  ID?: string;
   Date: string;
   Time: string;
   Player?: string;
@@ -228,16 +229,14 @@ export default function SummerHoopsScheduler() {
     }
   };
 
-  const handleSettleSlot = async (date: string, time: string, player: string): Promise<void> => {
-    setSlotActionLoading(`settle-${date}-${time}-${player}`);
+  const handleSettleSlot = async (slotId: string): Promise<void> => {
+    setSlotActionLoading(`settle-${slotId}`);
     try {
       await fetch("/api/slots/settle", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
-          date, 
-          time, 
-          player, 
+          slotId, 
           requestingUser: playerName,
           adminMode 
         }),
