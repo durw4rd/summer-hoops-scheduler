@@ -78,6 +78,30 @@ function validateSlotCount(session: any, playerName: string): boolean {
   return slotCount <= 2;
 }
 
+// Check if a player has an active offer for grabs in this session
+function hasActiveOfferForGrabs(allSlots: any[], date: string, time: string, player: string): boolean {
+  const normalize = (v: string) => v.trim().toLowerCase();
+  return allSlots.some(slot => 
+    normalizeDate(slot.Date) === normalizeDate(date) &&
+    normalize(slot.Time) === normalize(time) &&
+    normalize(slot.Player) === normalize(player) &&
+    slot.Status === 'offered' &&
+    slot.SwapRequested !== 'yes'
+  );
+}
+
+// Check if a player has an active swap offer in this session
+function hasActiveSwapOffer(allSlots: any[], date: string, time: string, player: string): boolean {
+  const normalize = (v: string) => v.trim().toLowerCase();
+  return allSlots.some(slot => 
+    normalizeDate(slot.Date) === normalizeDate(date) &&
+    normalize(slot.Time) === normalize(time) &&
+    normalize(slot.Player) === normalize(player) &&
+    slot.Status === 'offered' &&
+    slot.SwapRequested === 'yes'
+  );
+}
+
 export default function ScheduleCard({
   game,
   userMapping,
@@ -193,6 +217,18 @@ export default function ScheduleCard({
                         const count = playerCounts[playerId];
                         const isClickable = adminMode && onAdminReassignClick;
                         
+                        // Check for active offers
+                        const hasOfferForGrabs = hasActiveOfferForGrabs(allSlots, game.date, session.time, playerId);
+                        const hasSwapOffer = hasActiveSwapOffer(allSlots, game.date, session.time, playerId);
+                        
+                        // Determine styling based on offers
+                        let offerStyling = "";
+                        if (hasOfferForGrabs) {
+                          offerStyling = "border-2 border-red-400";
+                        } else if (hasSwapOffer) {
+                          offerStyling = "border-2 border-blue-400";
+                        }
+                        
                         return (
                           <div
                             key={playerId + '-' + idx}
@@ -202,14 +238,22 @@ export default function ScheduleCard({
                               isClickable 
                                 ? "cursor-pointer hover:bg-red-50 hover:border-red-300 border border-transparent transition-colors" 
                                 : ""
-                            }`}
+                            } ${offerStyling}`}
                             style={playerColor ? { backgroundColor: playerColor, color: '#fff' } : {}}
                             onClick={isClickable ? () => onAdminReassignClick!({ 
                               date: game.date, 
                               time: session.time, 
                               currentPlayer: playerId 
                             }) : undefined}
-                            title={isClickable ? `Admin: Click to reassign ${playerId}'s slot` : undefined}
+                            title={
+                              isClickable 
+                                ? `Admin: Click to reassign ${playerId}'s slot`
+                                : hasOfferForGrabs 
+                                  ? `${playerId} has a slot offered for grabs`
+                                  : hasSwapOffer 
+                                    ? `${playerId} has a slot offered for swap`
+                                    : undefined
+                            }
                           >
                             <Avatar className="w-4 h-4">
                               <AvatarImage
@@ -229,6 +273,13 @@ export default function ScheduleCard({
                                 <span className="ml-1 text-xs font-semibold">+{count - 1}</span>
                               )}
                             </span>
+                            {/* Offer indicators */}
+                            {hasOfferForGrabs && (
+                              <span className="ml-1 w-2 h-2 bg-red-500 rounded-full" title="Slot offered for grabs"></span>
+                            )}
+                            {hasSwapOffer && (
+                              <span className="ml-1 w-2 h-2 bg-blue-500 rounded-full" title="Slot offered for swap"></span>
+                            )}
                             {isClickable && (
                               <span className="ml-1 text-red-600 opacity-0 group-hover:opacity-100 transition-opacity">
                                 🔧
