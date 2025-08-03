@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useState } from "react";
+import SlotSelectionModal from "@/components/SlotSelectionModal";
 // Remove icon imports
 // import { Gift, Repeat, UserPlus } from "lucide-react";
 import { getOptimizedProfileImage, handleProfileImageError, normalizeDate, isSessionInPast } from "@/lib/utils";
@@ -53,6 +54,30 @@ function getSlotForSession(availableSlots: any[], date: string, time: string, pl
   );
 }
 
+function getUserSlotCount(session: any, playerName: string): number {
+  if (!playerName) return 0;
+  return session.players.filter((p: string) => 
+    p.toLowerCase() === playerName.toLowerCase()
+  ).length;
+}
+
+function getUserOfferedSlots(allSlots: any[], date: string, time: string, playerName: string): any[] {
+  const normalize = (v: string) => v.trim().toLowerCase();
+  return allSlots.filter(
+    (slot) =>
+      normalizeDate(slot.Date) === normalizeDate(date) &&
+      normalize(slot.Time) === normalize(time) &&
+      normalize(slot.Player) === normalize(playerName) &&
+      slot.Status === "offered"
+  );
+}
+
+// Validation: Prevent more than 2 slots per user per session
+function validateSlotCount(session: any, playerName: string): boolean {
+  const slotCount = getUserSlotCount(session, playerName);
+  return slotCount <= 2;
+}
+
 export default function ScheduleCard({
   game,
   userMapping,
@@ -67,6 +92,11 @@ export default function ScheduleCard({
   adminMode = false,
   onAdminReassignClick,
 }: ScheduleCardProps) {
+  // Slot selection modal state
+  const [slotSelectionModalOpen, setSlotSelectionModalOpen] = useState(false);
+  const [slotSelectionAction, setSlotSelectionAction] = useState<'offer' | 'swap'>('offer');
+  const [slotSelectionSession, setSlotSelectionSession] = useState<{ date: string; time: string; player: string } | null>(null);
+  const [slotSelectionCount, setSlotSelectionCount] = useState(0);
   return (
     <Card
       key={game.id}
@@ -88,18 +118,15 @@ export default function ScheduleCard({
         {game.sessions.map((session: any) => {
           const sessionId = `${game.date}-${session.time}`;
           const isUserParticipant = playerName && session.players.some((p: string) => p.toLowerCase() === playerName!.toLowerCase());
-          let userSlot = isUserParticipant ? getSlotForSession(allSlots, game.date, session.time, playerName!) : null;
-          let userSwapSlot = null;
-          if (isUserParticipant) {
-            userSwapSlot = allSlots.find(
-              (slot: any) =>
-                normalizeDate(slot.Date) === normalizeDate(game.date) &&
-                slot.Time.trim() === session.time.trim() &&
-                slot.Player === playerName &&
-                slot.SwapRequested === 'yes' &&
-                slot.Status === 'offered'
-            );
-          }
+          const userSlotCount = getUserSlotCount(session, playerName!);
+          const userOfferedSlots = getUserOfferedSlots(allSlots, game.date, session.time, playerName!);
+          const userRegularOfferedSlots = userOfferedSlots.filter(slot => slot.SwapRequested !== 'yes');
+          const userSwapOfferedSlots = userOfferedSlots.filter(slot => slot.SwapRequested === 'yes');
+          
+          // Check if user has any offered slots (for UI display)
+          const hasOfferedSlots = userOfferedSlots.length > 0;
+          const hasRegularOfferedSlots = userRegularOfferedSlots.length > 0;
+          const hasSwapOfferedSlots = userSwapOfferedSlots.length > 0;
           // Count available slots for this session
           const availableCount = allSlots.filter(
             (slot: any) =>
@@ -221,18 +248,18 @@ export default function ScheduleCard({
               )}
               {/* Show tag for user's slot offer type, only one at a time, and only for active offers, below player list or in same place if condensed */}
               {isUserParticipant && (
-                userSwapSlot && userSwapSlot.Status === 'offered' ? (
+                hasSwapOfferedSlots ? (
                   <span className="border border-blue-500 text-blue-600 bg-blue-50 font-semibold rounded-full px-3 py-1 text-xs inline-block mt-1 mb-0">
                     Up for Swap
                   </span>
-                ) : userSlot && userSlot.Status === 'offered' ? (
+                ) : hasRegularOfferedSlots ? (
                   <span className="border border-red-500 text-red-600 bg-red-50 font-semibold rounded-full px-3 py-1 text-xs inline-block mt-1 mb-0">
                     Up for Grabs
                   </span>
                 ) : null
               )}
               {/* Slot for grabs actions */}
-              {isUserParticipant && !userSlot && (
+              {isUserParticipant && !hasOfferedSlots && (
                 <div className="mt-3 flex flex-row w-full gap-x-1">
                   {!isSessionInPast(game.date) && (
                     <>
@@ -241,7 +268,16 @@ export default function ScheduleCard({
                         variant="outline"
                         className="flex-1 min-w-0 whitespace-normal h-auto rounded-md font-semibold border-red-500 text-red-600 hover:bg-red-50 flex items-center justify-center gap-1"
                         disabled={slotActionLoading === sessionId}
-                        onClick={() => handleOfferSlot(game.date, session.time, playerName!, sessionId)}
+                        onClick={() => {
+                          if (userSlotCount > 1) {
+                            setSlotSelectionAction('offer');
+                            setSlotSelectionSession({ date: game.date, time: session.time, player: playerName! });
+                            setSlotSelectionCount(userSlotCount);
+                            setSlotSelectionModalOpen(true);
+                          } else {
+                            handleOfferSlot(game.date, session.time, playerName!, sessionId);
+                          }
+                        }}
                       >
                         {slotActionLoading === sessionId ? "Offering..." : "Offer for grabs"}
                       </Button>
@@ -249,7 +285,16 @@ export default function ScheduleCard({
                         size="sm"
                         variant="outline"
                         className="flex-1 min-w-0 whitespace-normal h-auto rounded-md font-semibold border-blue-500 text-blue-600 hover:bg-blue-50 flex items-center justify-center gap-1"
-                        onClick={() => handleRequestSwap({ Date: game.date, Time: session.time })}
+                        onClick={() => {
+                          if (userSlotCount > 1) {
+                            setSlotSelectionAction('swap');
+                            setSlotSelectionSession({ date: game.date, time: session.time, player: playerName! });
+                            setSlotSelectionCount(userSlotCount);
+                            setSlotSelectionModalOpen(true);
+                          } else {
+                            handleRequestSwap({ Date: game.date, Time: session.time });
+                          }
+                        }}
                       >
                         Offer for swap
                       </Button>
@@ -283,6 +328,35 @@ export default function ScheduleCard({
           );
         })}
       </CardContent>
+      
+      {/* Slot Selection Modal */}
+      {slotSelectionSession && (
+        <SlotSelectionModal
+          open={slotSelectionModalOpen}
+          onOpenChange={setSlotSelectionModalOpen}
+          sessionInfo={slotSelectionSession}
+          slotCount={slotSelectionCount}
+          onConfirm={(selectedSlots) => {
+            if (slotSelectionAction === 'offer') {
+              // For offers, create multiple entries if multiple slots selected
+              selectedSlots.forEach((slotIndex) => {
+                handleOfferSlot(slotSelectionSession.date, slotSelectionSession.time, slotSelectionSession.player, `${slotSelectionSession.date}-${slotSelectionSession.time}-${slotIndex}`);
+              });
+            } else {
+              // For swaps, only use the first selected slot
+              const selectedSlotIndex = selectedSlots[0];
+              handleRequestSwap({ 
+                Date: slotSelectionSession.date, 
+                Time: slotSelectionSession.time,
+                SlotIndex: selectedSlotIndex 
+              });
+            }
+            setSlotSelectionModalOpen(false);
+          }}
+          loading={slotActionLoading !== null}
+          actionType={slotSelectionAction}
+        />
+      )}
     </Card>
   );
 } 

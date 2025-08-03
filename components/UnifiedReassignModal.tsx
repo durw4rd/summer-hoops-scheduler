@@ -7,9 +7,9 @@ import { Shield, UserCheck } from "lucide-react";
 interface UnifiedReassignModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  sessionInfo: { date: string; time: string; currentPlayer: string };
+  sessionInfo: { date: string; time: string; currentPlayer: string; slotIndex?: number };
   userMapping: Record<string, { email: string; color?: string }>;
-  onReassign: (newPlayer: string) => Promise<void>;
+  onReassign: (newPlayer: string, slotIndex?: number) => Promise<void>;
   loading: boolean;
   error: string | null;
   selectedPlayer: string;
@@ -19,6 +19,13 @@ interface UnifiedReassignModalProps {
   // Context determines behavior
   isPlayerEligible: boolean;
   isAdmin: boolean;
+  slotCount?: number;
+  // New validation props
+  getPlayerValidationState?: (date: string, time: string, player: string) => {
+    isValid: boolean;
+    message: string | null;
+    type: 'error' | 'warning' | 'none';
+  };
 }
 
 const UnifiedReassignModal: React.FC<UnifiedReassignModalProps> = ({
@@ -35,9 +42,12 @@ const UnifiedReassignModal: React.FC<UnifiedReassignModalProps> = ({
   onPlayerSelect,
   isPlayerEligible,
   isAdmin,
+  slotCount,
+  getPlayerValidationState,
 }) => {
   const [search, setSearch] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Determine modal behavior based on context
@@ -58,6 +68,13 @@ const UnifiedReassignModal: React.FC<UnifiedReassignModalProps> = ({
     return null;
   }
 
+  // Reset confirmed state when modal opens
+  useEffect(() => {
+    if (open) {
+      setConfirmed(false);
+    }
+  }, [open]);
+
   // List of player names except the current player
   const playerNames = useMemo(
     () => Object.keys(userMapping).filter(name => name !== sessionInfo.currentPlayer),
@@ -73,6 +90,8 @@ const UnifiedReassignModal: React.FC<UnifiedReassignModalProps> = ({
   // Keep input in sync with selectedPlayer
   useEffect(() => {
     if (selectedPlayer) setSearch(selectedPlayer);
+    // Reset confirmed state when selected player changes
+    setConfirmed(false);
   }, [selectedPlayer]);
 
   const handleSelect = (name: string) => {
@@ -100,8 +119,25 @@ const UnifiedReassignModal: React.FC<UnifiedReassignModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedPlayer || warn) return;
-    await onReassign(selectedPlayer);
+    if (!selectedPlayer) return;
+    
+    // Use new validation system if available
+    if (getPlayerValidationState) {
+      const validation = getPlayerValidationState(sessionInfo.date, sessionInfo.time, selectedPlayer);
+      if (!validation.isValid) {
+        return; // Don't proceed if validation fails
+      }
+    } else {
+      // Fallback to old warning system
+      if (warn && !confirmed) {
+        setConfirmed(true);
+        onConfirm();
+        return;
+      }
+    }
+    
+    // Proceed with reassignment
+    await onReassign(selectedPlayer, sessionInfo.slotIndex);
   };
 
   const isPlayerReassign = behavior === 'PLAYER_REASSIGN';
@@ -118,8 +154,8 @@ const UnifiedReassignModal: React.FC<UnifiedReassignModalProps> = ({
           </DialogTitle>
           <DialogDescription>
             {isPlayerReassign 
-              ? `Reassign your slot for ${sessionInfo.date} / ${sessionInfo.time} to another player`
-              : `Admin reassignment for ${sessionInfo.date} / ${sessionInfo.time} session`
+              ? `Reassign your slot for ${sessionInfo.date} / ${sessionInfo.time} to another player${slotCount && slotCount > 1 ? ` (you have ${slotCount} slots in this session)` : ''}`
+              : `Admin reassignment for ${sessionInfo.date} / ${sessionInfo.time} session${slotCount && slotCount > 1 ? ` (${sessionInfo.currentPlayer} has ${slotCount} slots)` : ''}`
             }
           </DialogDescription>
         </DialogHeader>
@@ -196,7 +232,29 @@ const UnifiedReassignModal: React.FC<UnifiedReassignModalProps> = ({
               </div>
             )}
 
-            {warn && (
+            {selectedPlayer && getPlayerValidationState && (
+              (() => {
+                const validation = getPlayerValidationState(sessionInfo.date, sessionInfo.time, selectedPlayer);
+                if (validation.type === 'error') {
+                  return (
+                    <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <Shield className="w-4 h-4 text-red-600" />
+                      <span className="text-sm text-red-800">{validation.message}</span>
+                    </div>
+                  );
+                } else if (validation.type === 'warning') {
+                  return (
+                    <div className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <Shield className="w-4 h-4 text-yellow-600" />
+                      <span className="text-sm text-yellow-800">{validation.message}</span>
+                    </div>
+                  );
+                }
+                return null;
+              })()
+            )}
+
+            {warn && !getPlayerValidationState && (
               <div className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <Shield className="w-4 h-4 text-yellow-600" />
                 <span className="text-sm text-yellow-800">
@@ -220,7 +278,11 @@ const UnifiedReassignModal: React.FC<UnifiedReassignModalProps> = ({
             </DialogClose>
             <Button
               type="submit"
-              disabled={!selectedPlayer || loading}
+              disabled={
+                !selectedPlayer || 
+                loading || 
+                (getPlayerValidationState && selectedPlayer ? !getPlayerValidationState(sessionInfo.date, sessionInfo.time, selectedPlayer).isValid : false)
+              }
               className={isAdminReassign ? "bg-red-600 hover:bg-red-700" : ""}
             >
               {loading ? "Reassigning..." : (isPlayerReassign ? "Reassign Slot" : "Admin Reassign")}

@@ -167,7 +167,54 @@ const ScheduleTab: React.FC<ScheduleTabProps> = ({
     return false;
   }
 
-  async function handleReassign(newPlayer: string) {
+  function getPlayerSlotCount(date: string, time: string, player: string) {
+    for (const game of scheduleToDisplay) {
+      if (normalizeDate(game.date) === normalizeDate(date)) {
+        for (const session of game.sessions) {
+          if (session.time.trim() === time.trim()) {
+            return session.players.filter((p: string) => p.toLowerCase() === player.toLowerCase()).length;
+          }
+        }
+      }
+    }
+    return 0;
+  }
+
+  function canPlayerReceiveSlot(date: string, time: string, player: string) {
+    const slotCount = getPlayerSlotCount(date, time, player);
+    return slotCount < 2;
+  }
+
+  function getPlayerValidationState(date: string, time: string, player: string): {
+    isValid: boolean;
+    message: string | null;
+    type: 'error' | 'warning' | 'none';
+  } {
+    const slotCount = getPlayerSlotCount(date, time, player);
+    const isInSession = isPlayerInSession(date, time, player);
+    
+    if (slotCount >= 2) {
+      return {
+        isValid: false,
+        message: `This player already has ${slotCount} slots in this session. Maximum 2 slots allowed per player.`,
+        type: 'error'
+      };
+    } else if (isInSession && slotCount === 1) {
+      return {
+        isValid: true,
+        message: `This player already has 1 slot in this session. Reassigning will give them a second slot.`,
+        type: 'warning'
+      };
+    } else {
+      return {
+        isValid: true,
+        message: null,
+        type: 'none'
+      };
+    }
+  }
+
+  async function handleReassign(newPlayer: string, slotIndex?: number) {
     if (!reassignSession) return;
     setReassignError(null);
     setReassignSelectedPlayer(newPlayer);
@@ -188,6 +235,7 @@ const ScheduleTab: React.FC<ScheduleTabProps> = ({
           time: reassignSession.time,
           fromPlayer: reassignSession.currentPlayer,
           toPlayer: newPlayer,
+          slotIndex: slotIndex, // Pass slot index for multiple slot handling
         }),
       });
       const json = await res.json();
@@ -209,17 +257,9 @@ const ScheduleTab: React.FC<ScheduleTabProps> = ({
     }
   }
 
-  async function handleAdminReassign(newPlayer: string) {
+  async function handleAdminReassign(newPlayer: string, slotIndex?: number) {
     if (!adminReassignSession) return;
-    setAdminReassignError(null);
-    setAdminReassignSelectedPlayer(newPlayer);
-    // Check if player is already in session
-    const alreadyInSession = isPlayerInSession(adminReassignSession.date, adminReassignSession.time, newPlayer);
-    if (alreadyInSession && !adminReassignConfirm) {
-      setAdminReassignWarn(true);
-      setAdminReassignConfirm(true);
-      return;
-    }
+    
     setAdminReassignLoading(true);
     try {
       const res = await fetch("/api/schedule/admin-reassign", {
@@ -233,6 +273,7 @@ const ScheduleTab: React.FC<ScheduleTabProps> = ({
           time: adminReassignSession.time,
           fromPlayer: adminReassignSession.currentPlayer,
           toPlayer: newPlayer,
+          slotIndex: slotIndex, // Pass slot index for multiple slot handling
         }),
       });
       const json = await res.json();
@@ -348,10 +389,11 @@ const ScheduleTab: React.FC<ScheduleTabProps> = ({
           error={reassignError}
           selectedPlayer={reassignSelectedPlayer}
           warn={reassignWarn}
-          onConfirm={() => handleReassign(reassignSelectedPlayer)}
+          onConfirm={() => setReassignConfirm(true)}
           onPlayerSelect={(player: string) => setReassignSelectedPlayer(player)}
           isPlayerEligible={true}
           isAdmin={false}
+          slotCount={getPlayerSlotCount(reassignSession.date, reassignSession.time, reassignSession.currentPlayer)}
         />
       )}
       {adminReassignSession && (
@@ -365,10 +407,12 @@ const ScheduleTab: React.FC<ScheduleTabProps> = ({
           error={adminReassignError}
           selectedPlayer={adminReassignSelectedPlayer}
           warn={adminReassignWarn}
-          onConfirm={() => handleAdminReassign(adminReassignSelectedPlayer)}
+          onConfirm={() => setAdminReassignConfirm(true)}
           onPlayerSelect={(player: string) => setAdminReassignSelectedPlayer(player)}
           isPlayerEligible={false}
           isAdmin={true}
+          slotCount={getPlayerSlotCount(adminReassignSession.date, adminReassignSession.time, adminReassignSession.currentPlayer)}
+          getPlayerValidationState={getPlayerValidationState}
         />
       )}
     </>
