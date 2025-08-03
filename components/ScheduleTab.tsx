@@ -141,9 +141,9 @@ const ScheduleTab: React.FC<ScheduleTabProps> = ({
   }
 
   function handleAdminReassignClick(sessionInfo: { date: string; time: string; currentPlayer: string }) {
-    // Only allow admin reassignment if admin mode is enabled AND user is not eligible for player reassignment
-    if (!adminMode || isUserParticipantInSession(sessionInfo.date, sessionInfo.time)) {
-      return; // Don't open modal if not admin or if user is eligible for player reassignment
+    // Only allow admin reassignment if admin mode is enabled
+    if (!adminMode) {
+      return; // Don't open modal if not admin
     }
     setAdminReassignSession(sessionInfo);
     setAdminReassignModalOpen(true);

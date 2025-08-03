@@ -5,6 +5,7 @@ import { useSession, signIn, signOut } from "next-auth/react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Calendar, Store, Flag } from "lucide-react"
 import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 import SwapModal from "@/components/SwapModal";
 import ClaimConfirmationModal from "@/components/ClaimConfirmationModal";
 import ScheduleTab from "@/components/ScheduleTab";
@@ -739,6 +740,9 @@ export default function SummerHoopsScheduler() {
             setShowTournamentSplash(false);
           }}
         />
-      </div>
+
+      {/* Footer */}
+      <Footer />
+    </div>
   );
 }

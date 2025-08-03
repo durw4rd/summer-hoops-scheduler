@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Shield, UserCheck } from "lucide-react";
@@ -116,6 +116,12 @@ const UnifiedReassignModal: React.FC<UnifiedReassignModalProps> = ({
             {isPlayerReassign && <UserCheck className="w-5 h-5 text-blue-600" />}
             {isPlayerReassign ? 'Reassign Slot' : 'Admin Reassignment'}
           </DialogTitle>
+          <DialogDescription>
+            {isPlayerReassign 
+              ? `Reassign your slot for ${sessionInfo.date} / ${sessionInfo.time} to another player`
+              : `Admin reassignment for ${sessionInfo.date} / ${sessionInfo.time} session`
+            }
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="space-y-3">

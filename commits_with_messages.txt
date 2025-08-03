@@ -1,0 +1,229 @@
+04363635db90dc113bf7d4635909aee30687e24f
+Michal Fasanek
+2025-08-02 20:32:10 +0200
+use inified reassignment modal
+
+ed3e38501a80668a8454162924e5b3886c9f349d
+Michal Fasanek
+2025-08-02 15:42:05 +0200
+migration to ID-based slot lookups
+
+abf1a557e593d7890da4a77faed7a9176d6f2745
+Michal Fasanek
+2025-08-02 13:34:56 +0200
+add slot IDs; fix slot settle handling of duplicate slots
+
+cf5df0d3d4943721c6c76aadfe8d4337c3213f99
+Michal Fasanek
+2025-08-01 18:23:58 +0200
+fix date normalization issues
+
+3abbe1931613ddc0a03debc3e47534955203b075
+Michal Fasanek
+2025-07-31 13:58:09 +0200
+fix mark settled permissions bug
+
+e964b4555a20e3a7f5504284dcf66f1f572948fa
+Michal Fasanek
+2025-07-31 13:40:44 +0200
+refactor update-expired route
+
+ef0226a413ba52af7b33c2dbf498776f3a2b7cc9
+Michal Fasanek
+2025-07-31 13:34:43 +0200
+add the option to mark slots as settled
+
+9ef17840d70743a5c76f95dd6c67495f54268361
+Michal Fasanek
+2025-07-31 12:46:31 +0200
+change marketplace sheet name
+
+65b51cdc2184b3c95398b36993125066ed6a23ed
+Michal Fasanek
+2025-07-31 00:46:15 +0200
+add admin mode; add auto-expiration
+
+8d03ee439dd9901c1a95fd5ad1cdcdbd5246f8c2
+Michal Fasanek
+2025-07-27 22:40:40 +0200
+fix date normalization issues
+
+7f78d08f058d690f3f0e144571edfe6c1dc3cb0b
+Michal Fasanek
+2025-07-25 16:04:42 +0200
+add pics for nick, luuk, free
+
+0b04d73cbc0ea02b116ba2a33b78601ab77e2e1c
+Michal Fasanek
+2025-07-25 00:37:19 +0200
+design upgrade; add persistence;
+
+89a84968fddb3f69fad11f7c0b7ae33b94def048
+Michal Fasanek
+2025-07-24 18:52:21 +0200
+add LD observability, optimize image handling, use consistent profile pic
+
+23bc0f69c6bf1f70691dd2916db7eaae5ce1ceb1
+Michal Fasanek
+2025-07-18 23:17:29 +0200
+add LD observability & session replay
+
+6c465741e4e758e2e5757bec79038f5c7978a894
+Michal Fasanek
+2025-07-18 18:51:31 +0200
+add LD React SDK
+
+d35beaca98bb895e31340fcf90385443838687c4
+Michal Fasanek
+2025-07-16 14:34:10 +0200
+fix broken icons in tournament badge
+
+184fb3d3c2a51eb01b1ca5e2660448cc2c1aa9e8
+Michal Fasanek
+2025-07-16 14:24:24 +0200
+add tournament announcement
+
+98afdae312052d22ab9dd9ec40296147b85e0964
+Michal Fasanek
+2025-07-16 12:54:46 +0200
+add the ability to claim free spots
+
+ab5327557aa1173a8a3479ab86c4ee6c151fbd01
+Michal Fasanek
+2025-07-16 12:37:59 +0200
+extend session, clean up googleSheets fns
+
+e3e68851ef627198b0897f977f882bb80025b5df
+Michal Fasanek
+2025-07-16 12:18:41 +0200
+adding two extra sessions to scope
+
+ac12a5030776b67f2bf461bcb7ad8d13e27aa2e0
+Michal Fasanek
+2025-07-16 10:57:34 +0200
+fix some UI things; add confirmation modal for all spot acceptances
+
+9e3b9a50a93798c2e2a8b3c3e3228a9fc601ee43
+Michal Fasanek
+2025-07-15 23:36:41 +0200
+improved filtering of the available slots
+
+db9e636f47ef76cd692c3bc762aa4f7d190d4a07
+Michal Fasanek
+2025-07-15 23:15:14 +0200
+consolidate confirmation modals
+
+e448e0569d738c70d2b636727ceb86275c51cad4
+Michal Fasanek
+2025-07-15 22:58:41 +0200
+fix swap bug
+
+0910cafa4fcf147f2da4aa7a614ccfd0cca6eebb
+Michal Fasanek
+2025-07-15 22:48:56 +0200
+improve design; add available slots badges on event cards
+
+cff2037fbe6295dc061e0cddac5168580df593b7
+Michal Fasanek
+2025-07-15 16:38:56 +0200
+add profile pics for marco and mehmet, enforce single-word names of players; use colours from the spreadsheet
+
+d70a1cf84bd372c29fc1cb94b511126ccd49b49f
+Michal Fasanek
+2025-07-14 12:22:52 +0200
+fix single-digit dates issue
+
+7a0395ca216c5110551cea1073b0459e1c74bb34
+Michal Fasanek
+2025-07-14 12:13:20 +0200
+adjust button styling for smaller screens
+
+b4d6f504b8267b96d615474908d5a964d4ab0b70
+Michal Fasanek
+2025-07-14 11:54:32 +0200
+add the ability to reassign slots
+
+c955d6d7491d69010a92d283f70962144dc04750
+Michal Fasanek
+2025-07-14 11:20:12 +0200
+add the ability to self-register
+
+4ccd7dad81b1dc6e004adc8108cf05b8cc5272d2
+Michal Fasanek
+2025-07-12 00:09:49 +0200
+extract tabs into separate components
+
+47b8d0864ff8980689ffc19c3aa8203e3c19eef6
+Michal Fasanek
+2025-07-11 23:39:32 +0200
+extract the easy components
+
+6a0e2ce71c633ec81dad445ceeeafd4149c073f5
+Michal Fasanek
+2025-07-11 15:26:18 +0200
+handling of multi-spots
+
+214bfe162a530f8f0bfbf7b70072a5f79b6a821e
+Michal Fasanek
+2025-07-11 15:13:24 +0200
+style improvements
+
+adda88129482e52d1f46aa85ba22c90f4c001dc6
+Michal Fasanek
+2025-07-11 14:32:48 +0200
+fix profile pics
+
+3bbfa8d0708a262de5b411c8c9b3b6b2c2fee97f
+Michal Fasanek
+2025-07-11 14:18:20 +0200
+add profile pics
+
+fa9dbefe8c3001098b843b7af6df0a67149c3416
+Michal Fasanek
+2025-07-11 12:10:25 +0200
+fine-tune spots view
+
+f7e9d48c3e809e3819ed0ad4eb3d0024bfe9da1b
+Michal Fasanek
+2025-07-11 11:53:15 +0200
+fix single digit dates
+
+12696c3fe455a0d4a90920c96405c4644a891dcd
+Michal Fasanek
+2025-07-11 01:37:23 +0200
+add option to swap slots; better display of available slots
+
+25325d3c4e7fcecc38f9d79da7a2257fcf3a7fde
+Michal Fasanek
+2025-07-10 23:56:39 +0200
+prep for slot swapping
+
+7005e4b1465bd2c10731c796e6aae48b2c073377
+Michal Fasanek
+2025-07-10 18:40:14 +0200
+add logo
+
+6614ff8aa5b3bd72d9d345f09a44719255084fa3
+Michal Fasanek
+2025-07-10 18:25:49 +0200
+add the ability to offer/claim slots
+
+0c0b0a48831f3e394d4fd3f1418177fe8049e02f
+Michal Fasanek
+2025-07-10 15:38:24 +0200
+add google login
+
+dac85e4f1de1d848fab5374a7b956b3884f027f0
+Michal Fasanek
+2025-07-10 15:07:50 +0200
+connect to the google spreadsheet and display the data
+
+c91ef9e7951c2e77aade4d9a5b56793ae9f3e0cc
+Michal Fasanek
+2025-07-10 13:04:32 +0200
+initial commit
+
+aef3ffd642eff510c52529ad783732ea889c3f95
+Michal Fasanek
+2025-07-10 13:02:59 +0200
+Initial commit
