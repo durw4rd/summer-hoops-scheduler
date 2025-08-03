@@ -41,7 +41,8 @@ Summer Hoops Scheduler helps ballers organize game sessions. Join games, offer y
 **Offering Your Spot**
 1. Find your session in the schedule
 2. Click "Offer for grabs"
-3. Other players can claim your spot
+3. If you have multiple slots, choose which ones to offer
+4. Other players can claim your spot
 
 **Claiming Available Spots**
 1. Look for "Available: X" badges
@@ -50,8 +51,9 @@ Summer Hoops Scheduler helps ballers organize game sessions. Join games, offer y
 
 **Swapping Slots**
 1. Click "Offer for swap" on your current session
-2. Pick the session you want instead
-3. Wait for someone to accept the swap
+2. If you have multiple slots, choose which one to offer for swap
+3. Pick the session you want instead
+4. Wait for someone to accept the swap
 
 **Reassigning Slots**
 1. Click "Reassign" on your session
@@ -66,6 +68,7 @@ Summer Hoops Scheduler helps ballers organize game sessions. Join games, offer y
 - Reassign any player's slot to another player
 - Oversee all slot operations
 - Manage sessions with elevated permissions
+- Clear validation for slot limits (max 2 slots per player)
 
 ## UI Guide
 
@@ -74,6 +77,8 @@ Summer Hoops Scheduler helps ballers organize game sessions. Join games, offer y
 - **Available badges**: Spots up for grabs
 - **Swap badges**: Swap offers available
 - **Player avatars**: Easy ID with profile pics
+- **Red borders/dots**: Players with slots offered for grabs
+- **Blue borders/dots**: Players with slots offered for swaps
 
 ### Marketplace
 - Browse all available slots

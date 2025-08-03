@@ -2,6 +2,33 @@
 
 All notable changes to the Summer Hoops Scheduler project will be documented in this file.
 
+## [2.9.0] - 2025-08-03
+
+### Added
+- **Multiple Slot Handling**: Comprehensive support for users with multiple slots in sessions
+  - Slot selection modal for offering multiple slots
+  - Validation to prevent more than 2 slots per user per session
+  - Separate marketplace entries for each offered slot
+- **Enhanced Admin Reassignment**: Improved admin reassignment with clear validation
+  - Clear messaging for different slot scenarios (0, 1, or 2 slots)
+  - Proper button states (enabled/disabled based on validation)
+  - Specific error messages when players have maximum slots
+- **Player Offer Indicators**: Visual indicators for players with active slot offers
+  - Red borders and dots for players with slots offered for grabs
+  - Blue borders and dots for players with slots offered for swaps
+  - Informative tooltips on hover
+  - Color consistency with session badges
+- **Slot Selection Modal**: New modal for selecting which slots to offer when users have multiple slots
+  - Different behavior for offers vs swaps (can select multiple for offers, only one for swaps)
+  - Clear UI with slot count and selection options
+  - Smart defaults for single slot users
+
+### Fixed
+- **Warning Flow**: Fixed admin reassignment warning flow to properly trigger API calls
+- **Slot Offer Duplication**: Prevented users from offering the same slot multiple times
+- **Admin Reassignment Logic**: Fixed admin reassignment to allow up to 2 slots per player
+- **Modal Accessibility**: Added DialogDescription for better accessibility
+
 ## [2.8.0] - 2025-08-02
 
 ### Added
