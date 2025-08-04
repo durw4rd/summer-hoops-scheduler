@@ -117,7 +117,7 @@ export function getOptimizedProfileImage(playerName: string): string {
 }
 
 // Get optimized profile image for Google OAuth user by mapping email to basketball player name
-export function getOptimizedProfileImageForUser(userEmail: string, userMapping: Record<string, { email: string; color?: string }>): string {
+export function getOptimizedProfileImageForUser(userEmail: string, userMapping: Record<string, { email: string; color?: string; role?: string }>): string {
   if (!userEmail || !userMapping) return '/optimized/profile-default.png';
   
   // Find the basketball player name that matches this email

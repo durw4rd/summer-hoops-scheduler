@@ -25,7 +25,7 @@ interface Game {
 }
 
 interface UserMapping {
-  [player: string]: { email: string; color?: string };
+  [player: string]: { email: string; color?: string; role?: string };
 }
 
 interface ScheduleCardProps {

@@ -10,7 +10,7 @@ interface MarketplaceTabProps {
   availableSlots: any[];
   playerName?: string;
   schedule: any[];
-  userMapping: Record<string, { email: string; color?: string }>;
+  userMapping: Record<string, { email: string; color?: string; role?: string }>;
   slotActionLoading: string | null;
   acceptSwapLoading: string | null;
   handleRecallSlot: (slotId: string, actionId: string) => void;

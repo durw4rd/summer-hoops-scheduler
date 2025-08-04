@@ -34,7 +34,7 @@ interface SessionData {
 }
 
 interface UserMapping {
-  [key: string]: { email: string; color?: string };
+  [key: string]: { email: string; color?: string; role?: string };
 }
 
 interface SlotData {

@@ -7,6 +7,8 @@ All notable changes to the Summer Hoops Scheduler project will be documented in 
 ### Added
 - **Added New Profile Images**: Added compressed profile images for Anita and 'bot' players
 - **Bot Player Support**: Automatic bot profile image assignment for players with names ending in 'bot'
+- **Support for Member Roles**: xtended user mapping to include role information from Google Sheets
+- **Admin Toggle UI**: Admin users can toggle admin mode directly from the app interface (using LD flag and flag triggers)
 
 ## [2.9.0] - 2025-08-03
 

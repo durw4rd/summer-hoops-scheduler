@@ -10,7 +10,7 @@ import { Euro } from "lucide-react";
 interface SlotCardProps {
   slot: any;
   idx: number;
-  userMapping: Record<string, { email: string; color?: string }>;
+  userMapping: Record<string, { email: string; color?: string; role?: string }>;
   slotActionLoading: string | null;
   acceptSwapLoading: string | null;
   handleRecallSlot: (slotId: string, actionId: string) => void;
@@ -226,8 +226,6 @@ export default function SlotCard({
         ) : slot.Status === 'offered' && (
           <Badge className="bg-yellow-200 text-yellow-900 mb-2">Up For Grabs</Badge>
         )}
-        
-
         
         {/* Recall button for owners */}
         {isOwner && slot.Status === 'offered' && !isSessionInPast(slot.Date) && slot.Status !== 'expired' && (

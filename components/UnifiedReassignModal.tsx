@@ -8,7 +8,7 @@ interface UnifiedReassignModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   sessionInfo: { date: string; time: string; currentPlayer: string; slotIndex?: number };
-  userMapping: Record<string, { email: string; color?: string }>;
+  userMapping: Record<string, { email: string; color?: string; role?: string }>;
   onReassign: (newPlayer: string, slotIndex?: number) => Promise<void>;
   loading: boolean;
   error: string | null;

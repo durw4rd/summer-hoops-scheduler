@@ -14,7 +14,7 @@ const RANGE_SCHEDULE = `${SHEET_DAILY_SCHEDULE}!B5:D`;
 /** Range for the marketplace sheet (now includes ID column) */
 const RANGE_SLOTS = `${SHEET_MARKETPLACE}!A:K`;
 /** Range for the user mapping sheet */
-const RANGE_USER_MAPPING = `${SHEET_USER_MAPPING}!A2:C`;
+const RANGE_USER_MAPPING = `${SHEET_USER_MAPPING}!A2:D`;
 /** The starting row for the schedule (for C column updates) */
 const SCHEDULE_START_ROW = 5;
 
@@ -63,11 +63,11 @@ export async function getUserMapping() {
     range: RANGE_USER_MAPPING,
   });
   const values = res.data.values || [];
-  // Convert to mapping: { [playerName]: { email, color } }
-  const mapping: Record<string, { email: string; color?: string }> = {};
+  // Convert to mapping: { [playerName]: { email, color, role } }
+  const mapping: Record<string, { email: string; color?: string; role?: string }> = {};
   for (const row of values) {
     if (row[0] && row[1]) {
-      mapping[row[0]] = { email: row[1], color: row[2] };
+      mapping[row[0]] = { email: row[1], color: row[2], role: row[3] };
     }
   }
   return mapping;
@@ -89,8 +89,6 @@ export async function offerSlotForGrabs({ date, time, player }: { date: string; 
   });
   return { success: true, slotId };
 }
-
-
 
 export async function claimSlotById({ slotId, claimer }: { slotId: string; claimer: string }) {
   const { row, rowNumber } = await findSlotById(slotId);

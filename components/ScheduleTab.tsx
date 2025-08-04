@@ -8,7 +8,7 @@ import { normalizeDate } from "@/lib/utils";
 
 interface ScheduleTabProps {
   scheduleToDisplay: any[];
-  userMapping: Record<string, { email: string; color?: string }>;
+  userMapping: Record<string, { email: string; color?: string; role?: string }>;
   playerName?: string;
   allSlots: any[];
   condensedMode: boolean;
