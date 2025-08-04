@@ -107,6 +107,11 @@ export function getOptimizedProfileImage(playerName: string): string {
   // Clean the player name for filename
   const cleanName = playerName.replace(/\s+/g, "").toLowerCase();
   
+  // Check if player name ends with 'bot' and use bot profile image
+  if (cleanName.endsWith('bot')) {
+    return '/optimized/profile-bot.png';
+  }
+  
   // Try optimized image first, fallback to original
   return `/optimized/profile-${cleanName}.png`;
 }
