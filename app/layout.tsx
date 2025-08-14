@@ -4,8 +4,8 @@ import SessionProviderWrapper from '@/components/SessionProviderWrapper'
 import LaunchDarklyProvider from '@/components/LaunchDarklyProvider'
 
 export const metadata: Metadata = {
-  title: 'Summer Hoops Scheduler',
-  description: 'App to view and manage summer hoops schedule',
+  title: 'Summer Hoops App',
+  description: 'App for managing our summer hoops games',
   generator: 'v0.dev + cursor',
   icons: {
     icon: [

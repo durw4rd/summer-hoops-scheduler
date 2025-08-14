@@ -2,6 +2,12 @@
 
 All notable changes to the Summer Hoops Scheduler project will be documented in this file.
 
+## [2.11.0] - 2025-08-14
+
+### Added
+- **Tournament Features**: Added team divisions display and video announcement for tournament session
+- **Profile Picture**: Added optimized profile image for Ben
+
 ## [2.10.0] - 2025-08-04
 
 ### Added

@@ -5,6 +5,7 @@ import UnifiedReassignModal from "@/components/UnifiedReassignModal";
 import FilterBar, { FilterItem } from "@/components/ui/filter-bar";
 import { getStorageKey, saveToStorage, loadFromStorage } from "@/lib/persistence";
 import { normalizeDate } from "@/lib/utils";
+import { TournamentData } from "@/lib/googleSheets";
 
 interface ScheduleTabProps {
   scheduleToDisplay: any[];
@@ -26,6 +27,9 @@ interface ScheduleTabProps {
   onClaimAvailableSlot?: (info: { date: string; time: string }) => void;
   onScheduleRefresh?: () => Promise<void>;
   adminMode?: boolean;
+  showTournamentFeatures?: boolean;
+  tournamentData?: TournamentData;
+  tournamentDataLoading?: boolean;
 }
 
 const ScheduleTab: React.FC<ScheduleTabProps> = ({
@@ -48,6 +52,9 @@ const ScheduleTab: React.FC<ScheduleTabProps> = ({
   onClaimAvailableSlot,
   onScheduleRefresh,
   adminMode = false,
+  showTournamentFeatures = false,
+  tournamentData = { teams: [] },
+  tournamentDataLoading = false,
 }) => {
   // Unified reassignment state
   const [reassignModalOpen, setReassignModalOpen] = useState(false);
@@ -367,6 +374,9 @@ const ScheduleTab: React.FC<ScheduleTabProps> = ({
                     onClaimAvailableSlot={onClaimAvailableSlot}
                     adminMode={adminMode}
                     onAdminReassignClick={handleAdminReassignClick}
+                    showTournamentFeatures={showTournamentFeatures}
+                    tournamentData={tournamentData}
+                    tournamentDataLoading={tournamentDataLoading}
                   />
                 ))
               )}

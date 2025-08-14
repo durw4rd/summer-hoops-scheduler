@@ -16,6 +16,7 @@ import TournamentSplash from "@/components/TournamentSplash";
 import { useLaunchDarkly } from "@/hooks/useLaunchDarkly";
 import { getStorageKey, saveToStorage, loadFromStorage } from "@/lib/persistence";
 import { normalizeDate } from "@/lib/utils";
+import { TournamentData } from "@/lib/googleSheets";
 
 // Types for better type safety
 interface ScheduleData {
@@ -59,6 +60,7 @@ export default function SummerHoopsScheduler() {
   const { getFlagValue } = useLaunchDarkly();
   const showFlagsTab = getFlagValue('showFlagsTab', false);
   const adminMode = getFlagValue('adminMode', false);
+  const showTournamentFeatures = getFlagValue('showTournamentFeatures', false);
   
   // Debug logging for admin mode (development only)
   useEffect(() => {
@@ -72,6 +74,7 @@ export default function SummerHoopsScheduler() {
   const [userMapping, setUserMapping] = useState<UserMapping>({});
   const [availableSlots, setAvailableSlots] = useState<SlotData[]>([]);
   const [allSlots, setAllSlots] = useState<SlotData[]>([]);
+  const [tournamentData, setTournamentData] = useState<TournamentData>({ teams: [] });
   
   // UI state
   const [showAll, setShowAll] = useState(false);
@@ -86,6 +89,7 @@ export default function SummerHoopsScheduler() {
   const [scheduleTabLoading, setScheduleTabLoading] = useState(false);
   const [slotsLoading, setSlotsLoading] = useState(true);
   const [userMappingLoading, setUserMappingLoading] = useState(true);
+  const [tournamentDataLoading, setTournamentDataLoading] = useState(false);
   const [slotActionLoading, setSlotActionLoading] = useState<string | null>(null);
   const [acceptSwapLoading, setAcceptSwapLoading] = useState<string | null>(null);
   
@@ -164,6 +168,23 @@ export default function SummerHoopsScheduler() {
       setSlotsLoading(false);
     }
   };
+
+  const fetchTournamentData = useCallback(async (): Promise<void> => {
+    if (!showTournamentFeatures) return;
+    
+    try {
+      setTournamentDataLoading(true);
+      const res = await fetch("/api/tournament");
+      const json = await res.json();
+      if (json.teams) {
+        setTournamentData({ teams: json.teams });
+      }
+    } catch (error) {
+      console.error('Failed to fetch tournament data:', error);
+    } finally {
+      setTournamentDataLoading(false);
+    }
+  }, [showTournamentFeatures]);
 
   // Event handlers
   const handleTabChange = (tab: string): void => {
@@ -498,6 +519,12 @@ export default function SummerHoopsScheduler() {
   }, [status, session]);
 
   useEffect(() => {
+    if (status === "authenticated" && session && showTournamentFeatures) {
+      fetchTournamentData();
+    }
+  }, [status, session, showTournamentFeatures, fetchTournamentData]);
+
+  useEffect(() => {
     if (!playerName || !schedule.length || tournamentSplashOptOut) return;
     const isInTournament = schedule.some(game =>
       game.date === '20.08' &&
@@ -598,6 +625,9 @@ export default function SummerHoopsScheduler() {
                 }}
                 onScheduleRefresh={refreshScheduleForTab}
                 adminMode={adminMode}
+                showTournamentFeatures={showTournamentFeatures}
+                tournamentData={tournamentData}
+                tournamentDataLoading={tournamentDataLoading}
               />
             )}
           </TabsContent>

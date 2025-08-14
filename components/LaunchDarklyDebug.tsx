@@ -137,6 +137,12 @@ export default function LaunchDarklyDebug() {
                     {adminMode ? "ON" : "OFF"}
                   </Badge>
                 </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">show-tournament-features:</span>
+                  <Badge variant={getFlagValue('show-tournament-features', false) ? "default" : "secondary"}>
+                    {getFlagValue('show-tournament-features', false) ? "ON" : "OFF"}
+                  </Badge>
+                </div>
                 {adminMode && (
                   <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
                     <div className="flex items-center gap-2 text-red-800">

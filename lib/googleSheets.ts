@@ -9,12 +9,16 @@ const SHEET_DAILY_SCHEDULE = "Daily schedule";
 const SHEET_MARKETPLACE = "Marketplace";
 /** Name of the user mapping sheet */
 const SHEET_USER_MAPPING = "User mapping";
+/** Name of the tournament sheet */
+const SHEET_TOURNAMENT = "Tournament";
 /** Range for the schedule (update as needed for new rows) */
 const RANGE_SCHEDULE = `${SHEET_DAILY_SCHEDULE}!B5:D`;
 /** Range for the marketplace sheet (now includes ID column) */
 const RANGE_SLOTS = `${SHEET_MARKETPLACE}!A:K`;
 /** Range for the user mapping sheet */
 const RANGE_USER_MAPPING = `${SHEET_USER_MAPPING}!A2:D`;
+/** Range for the tournament sheet (4 columns, 5 rows: team names + 4 players each) */
+const RANGE_TOURNAMENT = `${SHEET_TOURNAMENT}!A1:D5`;
 /** The starting row for the schedule (for C column updates) */
 const SCHEDULE_START_ROW = 5;
 
@@ -622,4 +626,72 @@ export async function requestSlotSwapFromSchedule({ date, time, player, requeste
   });
   
   return { success: true, slotId };
+}
+
+// Tournament Teams Types and Functions
+export interface TournamentTeam {
+  name: string;
+  players: string[];
+}
+
+export interface TournamentData {
+  teams: TournamentTeam[];
+}
+
+/**
+ * Fetches the tournament teams from the Google Sheet.
+ * Returns the team structure with team names and player lists.
+ */
+export async function getTournamentTeams(): Promise<TournamentData> {
+  try {
+    const sheets = await getGoogleSheetsClient();
+    const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
+    
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: RANGE_TOURNAMENT,
+    });
+    
+    const values = res.data.values || [];
+    
+    if (values.length === 0) {
+      console.warn('Tournament sheet is empty or not found');
+      return { teams: [] };
+    }
+    
+    // Parse the tournament data
+    // Row 0: Team names (A1:D1)
+    // Rows 1-4: Player names (A2:D5)
+    const teamNames = values[0] || [];
+    const playerRows = values.slice(1, 5) || [];
+    
+    const teams: TournamentTeam[] = [];
+    
+    // Process each column (team)
+    for (let colIndex = 0; colIndex < 4; colIndex++) {
+      const teamName = teamNames[colIndex] || `Team ${String.fromCharCode(65 + colIndex)}`; // A, B, C, D
+      const players: string[] = [];
+      
+      // Get players for this team (column)
+      for (let rowIndex = 0; rowIndex < 4; rowIndex++) {
+        const playerRow = playerRows[rowIndex] || [];
+        const player = playerRow[colIndex];
+        if (player && player.trim()) {
+          players.push(player.trim());
+        }
+      }
+      
+      if (players.length > 0) {
+        teams.push({
+          name: teamName,
+          players: players
+        });
+      }
+    }
+    
+    return { teams };
+  } catch (error) {
+    console.error('Error fetching tournament teams:', error);
+    return { teams: [] };
+  }
 }

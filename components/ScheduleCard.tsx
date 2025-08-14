@@ -5,9 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useState } from "react";
 import SlotSelectionModal from "@/components/SlotSelectionModal";
+import TournamentTeams from "@/components/TournamentTeams";
+import TournamentVideo from "@/components/TournamentVideo";
 // Remove icon imports
 // import { Gift, Repeat, UserPlus } from "lucide-react";
 import { getOptimizedProfileImage, handleProfileImageError, normalizeDate, isSessionInPast } from "@/lib/utils";
+import { TournamentData } from "@/lib/googleSheets";
 
 interface Session {
   id: string;
@@ -41,6 +44,9 @@ interface ScheduleCardProps {
   onClaimAvailableSlot?: (info: { date: string; time: string }) => void;
   adminMode?: boolean;
   onAdminReassignClick?: (sessionInfo: { date: string; time: string; currentPlayer: string }) => void;
+  showTournamentFeatures?: boolean;
+  tournamentData?: TournamentData;
+  tournamentDataLoading?: boolean;
 }
 
 function getSlotForSession(availableSlots: any[], date: string, time: string, player: string) {
@@ -115,6 +121,9 @@ export default function ScheduleCard({
   onClaimAvailableSlot,
   adminMode = false,
   onAdminReassignClick,
+  showTournamentFeatures = false,
+  tournamentData = { teams: [] },
+  tournamentDataLoading = false,
 }: ScheduleCardProps) {
   // Slot selection modal state
   const [slotSelectionModalOpen, setSlotSelectionModalOpen] = useState(false);
@@ -379,6 +388,32 @@ export default function ScheduleCard({
           );
         })}
       </CardContent>
+      
+      {/* Tournament Features - Only show for tournament session (20.08) */}
+      {game.date === '20.08' && showTournamentFeatures && playerName && (
+        <div className="px-6 pb-6">
+          {/* Check if user is attending the tournament */}
+          {game.sessions.some((session: any) => 
+            session.players.some((p: string) => p.toLowerCase() === playerName.toLowerCase())
+          ) && (
+            <>
+              {/* Tournament Teams */}
+              {tournamentData && tournamentData.teams.length > 0 && (
+                <TournamentTeams 
+                  teams={tournamentData.teams} 
+                  userMapping={userMapping} 
+                />
+              )}
+              
+              {/* Tournament Video */}
+              <TournamentVideo 
+                videoId="dQw4w9WgXcQ" // Replace with actual tournament announcement video ID
+                title="Tournament Team Announcement"
+              />
+            </>
+          )}
+        </div>
+      )}
       
       {/* Slot Selection Modal */}
       {slotSelectionSession && (
