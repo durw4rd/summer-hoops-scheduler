@@ -2,6 +2,11 @@
 
 All notable changes to the Summer Hoops Scheduler project will be documented in this file.
 
+## [2.11.1] - 2025-08-15
+
+### Added
+- **Modal with embedded Tournament Draft video**
+
 ## [2.11.0] - 2025-08-14
 
 ### Added

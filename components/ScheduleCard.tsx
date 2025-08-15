@@ -6,7 +6,6 @@ import { Separator } from "@/components/ui/separator";
 import { useState } from "react";
 import SlotSelectionModal from "@/components/SlotSelectionModal";
 import TournamentTeams from "@/components/TournamentTeams";
-import TournamentVideo from "@/components/TournamentVideo";
 // Remove icon imports
 // import { Gift, Repeat, UserPlus } from "lucide-react";
 import { getOptimizedProfileImage, handleProfileImageError, normalizeDate, isSessionInPast } from "@/lib/utils";
@@ -404,12 +403,6 @@ export default function ScheduleCard({
                   userMapping={userMapping} 
                 />
               )}
-              
-              {/* Tournament Video */}
-              <TournamentVideo 
-                videoId="dQw4w9WgXcQ" // Replace with actual tournament announcement video ID
-                title="Tournament Team Announcement"
-              />
             </>
           )}
         </div>

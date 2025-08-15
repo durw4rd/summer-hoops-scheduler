@@ -3,25 +3,21 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Play, X } from "lucide-react";
+import { Play } from "lucide-react";
 
 interface TournamentVideoProps {
-  videoId?: string; // YouTube video ID
+  videoId: string; // Vimeo video ID (required)
   title?: string;
 }
 
 export default function TournamentVideo({ 
-  videoId = "dQw4w9WgXcQ", // Default video ID - replace with actual tournament announcement video
-  title = "Tournament Team Announcement"
+  videoId,
+  title = "Summer Hoops @het Marnix mini-tournament official draft"
 }: TournamentVideoProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   const handleOpenVideo = () => {
     setIsOpen(true);
-  };
-
-  const handleCloseVideo = () => {
-    setIsOpen(false);
   };
 
   return (
@@ -48,31 +44,21 @@ export default function TournamentVideo({
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="max-w-4xl w-[90vw] p-0 bg-black border-2 border-yellow-400 shadow-2xl">
           <DialogHeader className="p-4 bg-gradient-to-r from-yellow-400 to-orange-500">
-            <div className="flex items-center justify-between">
-              <DialogTitle className="text-white font-bold flex items-center gap-2">
-                <span role="img" aria-label="trophy">🏆</span>
-                {title}
-                <span role="img" aria-label="fire">🔥</span>
-              </DialogTitle>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleCloseVideo}
-                className="text-white hover:bg-white/20"
-              >
-                <X className="w-5 h-5" />
-              </Button>
-            </div>
+            <DialogTitle className="text-white font-bold flex items-center gap-2">
+              <span role="img" aria-label="trophy">🏆</span>
+              {title}
+              <span role="img" aria-label="fire">🔥</span>
+            </DialogTitle>
           </DialogHeader>
           
-          <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+          <div className="relative w-full" style={{ paddingBottom: '56.6%' }}>
             <iframe
-              src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`}
+              key={videoId}
+              src={`https://player.vimeo.com/video/${videoId}?badge=0&autopause=0&player_id=0&app_id=58479&autoplay=1`}
               title={title}
               className="absolute top-0 left-0 w-full h-full"
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
+              allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media; web-share"
+              referrerPolicy="strict-origin-when-cross-origin"
             />
           </div>
           

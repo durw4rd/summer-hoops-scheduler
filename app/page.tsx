@@ -13,6 +13,7 @@ import MarketplaceTab from "@/components/MarketplaceTab";
 import RegisterPrompt from "@/components/RegisterPrompt";
 import LaunchDarklyDebug from "@/components/LaunchDarklyDebug";
 import TournamentSplash from "@/components/TournamentSplash";
+import TournamentVideoModal from "@/components/TournamentVideoModal";
 import { useLaunchDarkly } from "@/hooks/useLaunchDarkly";
 import { getStorageKey, saveToStorage, loadFromStorage } from "@/lib/persistence";
 import { normalizeDate } from "@/lib/utils";
@@ -104,6 +105,7 @@ export default function SummerHoopsScheduler() {
   // Tournament splash
   const [showTournamentSplash, setShowTournamentSplash] = useState(false);
   const [tournamentSplashOptOut, setTournamentSplashOptOut] = useState(false);
+  const [tournamentVideoOptOut, setTournamentVideoOptOut] = useState(false);
 
   // Tab state persistence
   const [isTabStateLoaded, setIsTabStateLoaded] = useState(false);
@@ -484,6 +486,7 @@ export default function SummerHoopsScheduler() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setTournamentSplashOptOut(localStorage.getItem('tournamentSplashOptOut') === '1');
+      setTournamentVideoOptOut(localStorage.getItem('tournamentVideoOptOut') === '1');
     }
   }, []);
 
@@ -525,7 +528,7 @@ export default function SummerHoopsScheduler() {
   }, [status, session, showTournamentFeatures, fetchTournamentData]);
 
   useEffect(() => {
-    if (!playerName || !schedule.length || tournamentSplashOptOut) return;
+    if (!playerName || !schedule.length || tournamentSplashOptOut || tournamentVideoOptOut) return;
     const isInTournament = schedule.some(game =>
       game.date === '20.08' &&
       game.sessions.some((session) =>
@@ -533,7 +536,7 @@ export default function SummerHoopsScheduler() {
       )
     );
     setShowTournamentSplash(isInTournament);
-  }, [playerName, schedule, tournamentSplashOptOut]);
+  }, [playerName, schedule, tournamentSplashOptOut, tournamentVideoOptOut]);
 
   // Early returns for better readability
   if (status === "loading") {
@@ -768,6 +771,21 @@ export default function SummerHoopsScheduler() {
             setTournamentSplashOptOut(true);
             localStorage.setItem('tournamentSplashOptOut', '1');
             setShowTournamentSplash(false);
+          }}
+        />
+
+        <TournamentVideoModal
+          videoId="1110274468"
+          title="Summer Hoops @het Marnix mini-tournament official draft"
+          isAttendingTournament={showTournamentFeatures && playerName && schedule.some(game =>
+            game.date === '20.08' &&
+            game.sessions.some((session) =>
+              session.players.some((p: string) => p.toLowerCase() === playerName.toLowerCase())
+            )
+          )}
+          onDontShowAgain={() => {
+            setTournamentVideoOptOut(true);
+            localStorage.setItem('tournamentVideoOptOut', '1');
           }}
         />
 
