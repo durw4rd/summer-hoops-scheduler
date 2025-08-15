@@ -130,15 +130,6 @@ export default function TournamentTeams({ teams, userMapping }: TournamentTeamsP
           ))}
         </div>
       )}
-
-      {/* Tournament Info Footer */}
-      <div className="text-center mt-6 p-4 bg-gradient-to-r from-yellow-100 to-orange-100 rounded-lg border-2 border-yellow-300">
-        <p className="text-sm font-semibold text-yellow-800">
-          <span role="img" aria-label="basketball">🏀</span>
-          Ready to bring the heat? Let's see who takes the crown! 
-          <span role="img" aria-label="crown">👑</span>
-        </p>
-      </div>
     </div>
   );
 }

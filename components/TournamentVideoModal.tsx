@@ -50,21 +50,21 @@ export default function TournamentVideoModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="max-w-5xl w-[95vw] p-0 bg-gradient-to-br from-yellow-300 via-orange-200 to-yellow-100 border-yellow-500 text-yellow-900 shadow-2xl ring-4 ring-yellow-400">
-        <DialogHeader className="p-6 bg-gradient-to-r from-yellow-400 to-orange-500 text-center">
-          <DialogTitle className="text-2xl font-extrabold flex items-center justify-center gap-3 text-white">
+      <DialogContent className="max-w-5xl w-[98vw] sm:w-[95vw] max-h-[95vh] p-0 bg-gradient-to-br from-yellow-300 via-orange-200 to-yellow-100 border-yellow-500 text-yellow-900 shadow-2xl ring-4 ring-yellow-400 overflow-hidden">
+        <DialogHeader className="p-3 sm:p-4 md:p-6 bg-gradient-to-r from-yellow-400 to-orange-500 text-center">
+          <DialogTitle className="text-lg sm:text-xl md:text-2xl font-extrabold flex items-center justify-center gap-1 sm:gap-2 md:gap-3 text-white">
             <span role="img" aria-label="trophy">🏆</span>
             <span className="drop-shadow-lg">TOURNAMENT TEAMS ANNOUNCEMENT</span>
             <span role="img" aria-label="fire">🔥</span>
           </DialogTitle>
-          <DialogDescription className="text-lg mt-4 font-semibold text-white">
+          <DialogDescription className="text-sm sm:text-base md:text-lg mt-2 sm:mt-3 md:mt-4 font-semibold text-white">
             <span className="block">Yo baller! The teams are set and ready to battle!</span>
-            <span className="block mt-2 text-yellow-100">Watch the official draft announcement below</span>
+            <span className="block mt-1 sm:mt-2 text-yellow-100">Watch the official draft announcement below</span>
           </DialogDescription>
         </DialogHeader>
         
         {/* Video Container */}
-        <div className="p-4">
+        <div className="p-1 sm:p-2 md:p-4 flex-1 min-h-0">
           <div className="relative w-full rounded-lg overflow-hidden shadow-2xl border-4 border-yellow-400" style={{ paddingBottom: '56.6%' }}>
             <iframe
               key={`${videoId}-${isPlaying}`}
@@ -80,8 +80,8 @@ export default function TournamentVideoModal({
                 className="absolute inset-0 flex items-center justify-center bg-black/20 hover:bg-black/10 transition-colors cursor-pointer group"
                 onClick={handlePlayVideo}
               >
-                <div className="bg-yellow-500 hover:bg-yellow-600 text-white rounded-full p-4 shadow-lg transform group-hover:scale-110 transition-all duration-200">
-                  <Play className="w-8 h-8" />
+                <div className="bg-yellow-500 hover:bg-yellow-600 text-white rounded-full p-2 sm:p-3 md:p-4 shadow-lg transform group-hover:scale-110 transition-all duration-200">
+                  <Play className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8" />
                 </div>
               </div>
             )}
@@ -89,16 +89,16 @@ export default function TournamentVideoModal({
         </div>
         
         {/* Action Buttons */}
-        <div className="p-6 flex flex-col gap-3 items-center">
+        <div className="p-2 sm:p-3 md:p-6 flex flex-col gap-2 sm:gap-3 items-center">
           <Button
             onClick={handleClose}
-            className="bg-yellow-500 hover:bg-yellow-600 text-white font-extrabold py-3 px-8 rounded-full shadow-xl text-lg tracking-wider uppercase transition border-2 border-yellow-700 flex items-center gap-2"
+            className="bg-yellow-500 hover:bg-yellow-600 text-white font-extrabold py-2 sm:py-3 px-4 sm:px-6 md:px-8 rounded-full shadow-xl text-sm sm:text-base md:text-lg tracking-wider uppercase transition border-2 border-yellow-700 flex items-center gap-2"
           >
-            <Play className="w-5 h-5" />
+            <Play className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5" />
             Let's Get Ready to Ball!
           </Button>
           <button
-            className="text-sm text-yellow-800 underline hover:text-orange-700 transition-colors"
+            className="text-xs sm:text-sm text-yellow-800 underline hover:text-orange-700 transition-colors"
             onClick={handleDontShowAgain}
           >
             Don't show this again
@@ -106,11 +106,11 @@ export default function TournamentVideoModal({
         </div>
         
         {/* Festive Footer */}
-        <div className="p-4 bg-gradient-to-r from-yellow-100 to-orange-100 text-center border-t-2 border-yellow-300">
-          <p className="text-sm font-semibold text-yellow-800">
-            <span role="img" aria-label="basketball">🏀</span>
-            The battle lines are drawn! Time to bring the heat! 
-            <span role="img" aria-label="crown">👑</span>
+        <div className="p-3 sm:p-4 bg-gradient-to-r from-yellow-100 to-orange-100 text-center border-t-2 border-yellow-300">
+          <p className="text-sm sm:text-sm font-semibold text-yellow-800">
+            <span className="p-1" role="img" aria-label="basketball">🏀</span>
+            The battle lines are drawn! Time to bring the heat!
+            <span className="p-1" role="img" aria-label="crown">👑</span>
           </p>
         </div>
       </DialogContent>
