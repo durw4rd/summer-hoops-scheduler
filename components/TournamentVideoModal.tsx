@@ -50,8 +50,8 @@ export default function TournamentVideoModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="max-w-5xl w-[98vw] sm:w-[95vw] max-h-[95vh] p-0 bg-gradient-to-br from-yellow-300 via-orange-200 to-yellow-100 border-yellow-500 text-yellow-900 shadow-2xl ring-4 ring-yellow-400 overflow-hidden">
-        <DialogHeader className="p-3 sm:p-4 md:p-6 bg-gradient-to-r from-yellow-400 to-orange-500 text-center">
+      <DialogContent className="max-w-5xl w-[98vw] sm:w-[95vw] max-h-[98vh] sm:max-h-[95vh] p-0 bg-gradient-to-br from-yellow-300 via-orange-200 to-yellow-100 border-yellow-500 text-yellow-900 shadow-2xl ring-4 ring-yellow-400 overflow-y-auto">
+        <DialogHeader className="p-3 sm:p-4 md:p-6 bg-gradient-to-r from-yellow-400 to-orange-500 text-center flex-shrink-0">
           <DialogTitle className="text-lg sm:text-xl md:text-2xl font-extrabold flex items-center justify-center gap-1 sm:gap-2 md:gap-3 text-white">
             <span role="img" aria-label="trophy">🏆</span>
             <span className="drop-shadow-lg">TOURNAMENT TEAMS ANNOUNCEMENT</span>
@@ -64,7 +64,7 @@ export default function TournamentVideoModal({
         </DialogHeader>
         
         {/* Video Container */}
-        <div className="p-1 sm:p-2 md:p-4 flex-1 min-h-0">
+        <div className="p-1 sm:p-2 md:p-4 flex-shrink-0">
           <div className="relative w-full rounded-lg overflow-hidden shadow-2xl border-4 border-yellow-400" style={{ paddingBottom: '56.6%' }}>
             <iframe
               key={`${videoId}-${isPlaying}`}
@@ -89,7 +89,7 @@ export default function TournamentVideoModal({
         </div>
         
         {/* Action Buttons */}
-        <div className="p-2 sm:p-3 md:p-6 flex flex-col gap-2 sm:gap-3 items-center">
+        <div className="p-2 sm:p-3 md:p-6 flex flex-col gap-2 sm:gap-3 items-center flex-shrink-0">
           <Button
             onClick={handleClose}
             className="bg-yellow-500 hover:bg-yellow-600 text-white font-extrabold py-2 sm:py-3 px-4 sm:px-6 md:px-8 rounded-full shadow-xl text-sm sm:text-base md:text-lg tracking-wider uppercase transition border-2 border-yellow-700 flex items-center gap-2"
@@ -106,7 +106,7 @@ export default function TournamentVideoModal({
         </div>
         
         {/* Festive Footer */}
-        <div className="p-3 sm:p-4 bg-gradient-to-r from-yellow-100 to-orange-100 text-center border-t-2 border-yellow-300">
+        <div className="p-3 sm:p-4 bg-gradient-to-r from-yellow-100 to-orange-100 text-center border-t-2 border-yellow-300 flex-shrink-0">
           <p className="text-sm sm:text-sm font-semibold text-yellow-800">
             <span className="p-1" role="img" aria-label="basketball">🏀</span>
             The battle lines are drawn! Time to bring the heat!
