@@ -3,13 +3,14 @@
 import { useState, useEffect, useCallback } from "react"
 import { useSession, signIn, signOut } from "next-auth/react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Calendar, Store, Flag } from "lucide-react"
+import { Calendar, Store, Flag, DollarSign } from "lucide-react"
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import SwapModal from "@/components/SwapModal";
 import ClaimConfirmationModal from "@/components/ClaimConfirmationModal";
 import ScheduleTab from "@/components/ScheduleTab";
 import MarketplaceTab from "@/components/MarketplaceTab";
+import SettlementTab from "@/components/SettlementTab";
 import RegisterPrompt from "@/components/RegisterPrompt";
 import LaunchDarklyDebug from "@/components/LaunchDarklyDebug";
 import TournamentSplash from "@/components/TournamentSplash";
@@ -106,6 +107,7 @@ export default function SummerHoopsScheduler() {
   const [showTournamentSplash, setShowTournamentSplash] = useState(false);
   const [tournamentSplashOptOut, setTournamentSplashOptOut] = useState(false);
   const [tournamentVideoOptOut, setTournamentVideoOptOut] = useState(false);
+  const [localStorageLoaded, setLocalStorageLoaded] = useState(false);
 
   // Tab state persistence
   const [isTabStateLoaded, setIsTabStateLoaded] = useState(false);
@@ -485,8 +487,12 @@ export default function SummerHoopsScheduler() {
   // Effects
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      setTournamentSplashOptOut(localStorage.getItem('tournamentSplashOptOut') === '1');
-      setTournamentVideoOptOut(localStorage.getItem('tournamentVideoOptOut') === '1');
+      const splashOptOut = localStorage.getItem('tournamentSplashOptOut') === '1';
+      const videoOptOut = localStorage.getItem('tournamentVideoOptOut') === '1';
+      console.log('Loading localStorage preferences:', { splashOptOut, videoOptOut });
+      setTournamentSplashOptOut(splashOptOut);
+      setTournamentVideoOptOut(videoOptOut);
+      setLocalStorageLoaded(true);
     }
   }, []);
 
@@ -570,7 +576,7 @@ export default function SummerHoopsScheduler() {
         <div className="bg-white border-b border-orange-100 shadow-sm">
           <div className="max-w-md mx-auto px-4 py-3">
             <Tabs value={activeTab} className="w-full" onValueChange={handleTabChange}>
-              <TabsList className={`grid w-full ${showFlagsTab ? 'grid-cols-3' : 'grid-cols-2'}`}>
+              <TabsList className={`grid w-full ${showFlagsTab ? 'grid-cols-4' : 'grid-cols-3'}`}>
                 <TabsTrigger value="schedule" className="flex items-center space-x-2">
                   <Calendar className="w-4 h-4" />
                   <span>Schedule</span>
@@ -578,6 +584,10 @@ export default function SummerHoopsScheduler() {
                 <TabsTrigger value="available" className="flex items-center space-x-2">
                   <Store className="w-4 h-4" />
                   <span>Marketplace</span>
+                </TabsTrigger>
+                <TabsTrigger value="settlement" className="flex items-center space-x-2">
+                  <DollarSign className="w-4 h-4" />
+                  <span>The Bank</span>
                 </TabsTrigger>
                 {showFlagsTab && (
                   <TabsTrigger value="flags" className="flex items-center space-x-2">
@@ -700,6 +710,16 @@ export default function SummerHoopsScheduler() {
             )}
           </TabsContent>
           
+          <TabsContent value="settlement" className="space-y-2">
+            {userMappingLoading ? (
+              <div className="text-center text-gray-500 py-10">Loading...</div>
+            ) : !isRegistered && session ? (
+              <RegisterPrompt email={session.user?.email || ""} onRegister={handleRegister} />
+            ) : (
+              <SettlementTab currentPlayer={playerName} />
+            )}
+          </TabsContent>
+          
           {showFlagsTab && (
             <TabsContent value="flags" className="space-y-4">
               {userMappingLoading ? (
@@ -774,20 +794,33 @@ export default function SummerHoopsScheduler() {
           }}
         />
 
-        <TournamentVideoModal
-          videoId="1110274468"
-          title="Summer Hoops @het Marnix mini-tournament official draft"
-          isAttendingTournament={showTournamentFeatures && playerName && schedule.some(game =>
+        {(() => {
+          const shouldShowModal = localStorageLoaded && showTournamentFeatures && !tournamentVideoOptOut && playerName && schedule.some(game =>
             game.date === '20.08' &&
             game.sessions.some((session) =>
               session.players.some((p: string) => p.toLowerCase() === playerName.toLowerCase())
             )
-          )}
-          onDontShowAgain={() => {
-            setTournamentVideoOptOut(true);
-            localStorage.setItem('tournamentVideoOptOut', '1');
-          }}
-        />
+          );
+          console.log('Modal rendering condition:', { 
+            localStorageLoaded,
+            showTournamentFeatures, 
+            tournamentVideoOptOut, 
+            playerName, 
+            shouldShowModal 
+          });
+          return shouldShowModal;
+        })() && (
+          <TournamentVideoModal
+            videoId="1110274468"
+            title="Summer Hoops @het Marnix mini-tournament official draft"
+            isAttendingTournament={true}
+            onDontShowAgain={() => {
+              console.log('Setting tournamentVideoOptOut to true');
+              setTournamentVideoOptOut(true);
+              localStorage.setItem('tournamentVideoOptOut', '1');
+            }}
+          />
+        )}
 
       {/* Footer */}
       <Footer />
