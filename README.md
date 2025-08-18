@@ -64,6 +64,17 @@ Summer Hoops Scheduler helps ballers organize game sessions. Join games, offer y
 1. Find a past slot that somebody took over from you
 2. Click "Mark as settled"
 
+**Managing Settlements**
+1. Go to "The Bank" tab to view settlement overview
+2. Toggle "Smart Settlement" to opt in/out of calculations
+3. View your credit/debit balance and slot breakdown
+
+### Settlement System
+- **Automated calculations**: Track credits/debits based on slot transactions
+- **Smart settlement toggle**: Opt in/out of automated settlement calculations
+- **Detailed breakdown**: See 1-hour vs 2-hour slot costs (€3.80 vs €7.60)
+- **Settlement overview**: Complete view of all players' balances
+
 ### Admin Features
 - Reassign any player's slot to another player
 - Oversee all slot operations
@@ -84,6 +95,12 @@ Summer Hoops Scheduler helps ballers organize game sessions. Join games, offer y
 - Browse all available slots
 - Filter by date and session
 - Quick claiming and offering
+
+### The Bank (Settlement)
+- **Creditors**: Players owed money (green amounts)
+- **Debtors**: Players who owe money (red amounts)
+- **Neutral**: Players with zero balance
+- **Slot breakdown**: Shows 1h vs 2h slots for transparency
 
 ## Real-Time Updates
 

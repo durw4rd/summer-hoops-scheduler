@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,17 +12,45 @@ interface PlayerCredit {
   slotsGivenAway: number;
   slotsClaimed: number;
   slotsSettled: number;
+  slotsGivenAway1h: number;
+  slotsGivenAway2h: number;
+  slotsClaimed1h: number;
+  slotsClaimed2h: number;
+}
+
+interface UserPreference {
+  smartSettle: boolean;
+  email: string;
+  color?: string;
+  role?: string;
+}
+
+interface SettlementOverviewData {
+  playerCredits: PlayerCredit[];
+  userPreferences: { [playerName: string]: UserPreference };
 }
 
 interface SettlementOverviewProps {
   currentPlayer?: string;
 }
 
-export default function SettlementOverview({ currentPlayer }: SettlementOverviewProps) {
-  const [playerCredits, setPlayerCredits] = useState<PlayerCredit[]>([]);
+export interface SettlementOverviewRef {
+  refresh: () => void;
+}
+
+const SettlementOverview = forwardRef<SettlementOverviewRef, SettlementOverviewProps>(
+  ({ currentPlayer }, ref) => {
+  const [settlementData, setSettlementData] = useState<SettlementOverviewData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Expose refresh method to parent component
+  useImperativeHandle(ref, () => ({
+    refresh: () => {
+      fetchSettlementOverview();
+    }
+  }));
 
   useEffect(() => {
     fetchSettlementOverview();
@@ -33,13 +61,21 @@ export default function SettlementOverview({ currentPlayer }: SettlementOverview
       setLoading(true);
       setError(null);
       
-      const response = await fetch('/api/settlement/debug');
+      const response = await fetch('/api/settlement/calculate');
       if (!response.ok) {
         throw new Error('Failed to fetch settlement overview');
       }
       
       const data = await response.json();
-      setPlayerCredits(data.data.playerCredits || []);
+      
+      // Fetch user preferences
+      const userMappingResponse = await fetch('/api/players/preferences');
+      const userMappingData = await userMappingResponse.json();
+      
+      setSettlementData({
+        playerCredits: data.data.playerCredits || [],
+        userPreferences: userMappingData.data || {}
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
@@ -52,6 +88,8 @@ export default function SettlementOverview({ currentPlayer }: SettlementOverview
     await fetchSettlementOverview();
     setRefreshing(false);
   };
+
+
 
   if (loading) {
     return (
@@ -94,9 +132,22 @@ export default function SettlementOverview({ currentPlayer }: SettlementOverview
     );
   }
 
-  const creditors = playerCredits.filter(p => p.credits > 0).sort((a, b) => b.credits - a.credits);
-  const debtors = playerCredits.filter(p => p.credits < 0).sort((a, b) => a.credits - b.credits);
-  const neutral = playerCredits.filter(p => p.credits === 0);
+  if (!settlementData) {
+    return (
+      <Card className="w-full">
+        <CardContent className="p-6">
+          <div className="text-center text-gray-500">
+            No settlement data available
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const { playerCredits } = settlementData;
+  const creditors = playerCredits.filter((p: PlayerCredit) => p.credits > 0).sort((a: PlayerCredit, b: PlayerCredit) => b.credits - a.credits);
+  const debtors = playerCredits.filter((p: PlayerCredit) => p.credits < 0).sort((a: PlayerCredit, b: PlayerCredit) => a.credits - b.credits);
+  const neutral = playerCredits.filter((p: PlayerCredit) => p.credits === 0);
 
   const totalCredits = creditors.reduce((sum, p) => sum + p.credits, 0);
   const totalDebits = Math.abs(debtors.reduce((sum, p) => sum + p.credits, 0));
@@ -141,32 +192,28 @@ export default function SettlementOverview({ currentPlayer }: SettlementOverview
               {creditors.map((player) => (
                 <div 
                   key={player.playerName}
-                  className={`flex justify-between items-center p-3 rounded-lg border ${
+                  className={`grid grid-cols-12 gap-2 items-center p-3 rounded-lg border ${
                     currentPlayer === player.playerName 
                       ? 'border-blue-300 bg-blue-50' 
                       : 'border-gray-200 bg-gray-50'
                   }`}
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{player.playerName}</span>
-                    {currentPlayer === player.playerName && (
-                      <Badge variant="outline" className="text-xs">You</Badge>
-                    )}
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-green-600 font-bold">+€{player.credits.toFixed(2)}</span>
-                      <Badge variant="secondary" className="text-xs">
-                        {player.slotsGivenAway} given, {player.slotsClaimed} claimed
-                      </Badge>
-                    </div>
+                  <div className="col-span-3 font-medium">{player.playerName}</div>
+                  <div className="col-span-6 text-center">
+                    <Badge variant="secondary" className="text-xs">
+                      {player.slotsGivenAway} given{player.slotsGivenAway2h > 0 ? ` (${player.slotsGivenAway2h}×2h)` : ''}<br />
+                      {player.slotsClaimed} claimed{player.slotsClaimed2h > 0 ? ` (${player.slotsClaimed2h}×2h)` : ''}
+                    </Badge>
                     {player.slotsSettled > 0 && (
-                      <div className="flex justify-end">
+                      <div className="mt-1">
                         <Badge variant="outline" className="text-xs text-blue-600 border-blue-300 bg-blue-50">
                           {player.slotsSettled} settled
                         </Badge>
                       </div>
                     )}
+                  </div>
+                  <div className="col-span-3 text-right">
+                    <span className="text-green-600 font-bold">+€{player.credits.toFixed(2)}</span>
                   </div>
                 </div>
               ))}
@@ -185,32 +232,28 @@ export default function SettlementOverview({ currentPlayer }: SettlementOverview
               {debtors.map((player) => (
                 <div 
                   key={player.playerName}
-                  className={`flex justify-between items-center p-3 rounded-lg border ${
+                  className={`grid grid-cols-12 gap-2 items-center p-3 rounded-lg border ${
                     currentPlayer === player.playerName 
                       ? 'border-blue-300 bg-blue-50' 
                       : 'border-gray-200 bg-gray-50'
                   }`}
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{player.playerName}</span>
-                    {currentPlayer === player.playerName && (
-                      <Badge variant="outline" className="text-xs">You</Badge>
-                    )}
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-red-600 font-bold">-€{Math.abs(player.credits).toFixed(2)}</span>
-                      <Badge variant="secondary" className="text-xs">
-                        {player.slotsGivenAway} given, {player.slotsClaimed} claimed
-                      </Badge>
-                    </div>
+                  <div className="col-span-3 font-medium">{player.playerName}</div>
+                  <div className="col-span-6 text-center">
+                    <Badge variant="secondary" className="text-xs">
+                      {player.slotsGivenAway} given{player.slotsGivenAway2h > 0 ? ` (${player.slotsGivenAway2h}×2h)` : ''}<br />
+                      {player.slotsClaimed} claimed{player.slotsClaimed2h > 0 ? ` (${player.slotsClaimed2h}×2h)` : ''}
+                    </Badge>
                     {player.slotsSettled > 0 && (
-                      <div className="flex justify-end">
+                      <div className="mt-1">
                         <Badge variant="outline" className="text-xs text-blue-600 border-blue-300 bg-blue-50">
                           {player.slotsSettled} settled
                         </Badge>
                       </div>
                     )}
+                  </div>
+                  <div className="col-span-3 text-right">
+                    <span className="text-red-600 font-bold">-€{Math.abs(player.credits).toFixed(2)}</span>
                   </div>
                 </div>
               ))}
@@ -229,58 +272,39 @@ export default function SettlementOverview({ currentPlayer }: SettlementOverview
               {neutral.map((player) => (
                 <div 
                   key={player.playerName}
-                  className={`flex justify-between items-center p-3 rounded-lg border ${
+                  className={`grid grid-cols-12 gap-4 items-center p-3 rounded-lg border ${
                     currentPlayer === player.playerName 
                       ? 'border-blue-300 bg-blue-50' 
                       : 'border-gray-200 bg-gray-50'
                   }`}
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{player.playerName}</span>
-                    {currentPlayer === player.playerName && (
-                      <Badge variant="outline" className="text-xs">You</Badge>
-                    )}
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-600 font-bold">€0.00</span>
-                      <Badge variant="secondary" className="text-xs">
-                        {player.slotsGivenAway} given, {player.slotsClaimed} claimed
-                      </Badge>
-                    </div>
+                  <div className="col-span-3 font-medium">{player.playerName}</div>
+                  <div className="col-span-7 text-center">
+                    <Badge variant="secondary" className="text-xs">
+                      {player.slotsGivenAway} given{player.slotsGivenAway2h > 0 ? ` (${player.slotsGivenAway2h}×2h)` : ''}<br />
+                      {player.slotsClaimed} claimed{player.slotsClaimed2h > 0 ? ` (${player.slotsClaimed2h}×2h)` : ''}
+                    </Badge>
                     {player.slotsSettled > 0 && (
-                      <div className="flex justify-end">
+                      <div className="mt-1">
                         <Badge variant="outline" className="text-xs text-blue-600 border-blue-300 bg-blue-50">
                           {player.slotsSettled} settled
                         </Badge>
                       </div>
                     )}
                   </div>
+                  <div className="col-span-2 text-right">
+                    <span className="text-gray-600 font-bold">€0.00</span>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
         )}
-
-        {/* Action Buttons */}
-        <div className="flex gap-2 pt-4 border-t">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="flex-1"
-            onClick={() => window.open('/api/settlement/debug', '_blank')}
-          >
-            View Full Details
-          </Button>
-          <Button 
-            size="sm" 
-            className="flex-1"
-            onClick={() => window.open('/api/settlement/calculate', '_blank')}
-          >
-            View Transactions
-          </Button>
-        </div>
       </CardContent>
     </Card>
   );
-}
+});
+
+SettlementOverview.displayName = 'SettlementOverview';
+
+export default SettlementOverview;

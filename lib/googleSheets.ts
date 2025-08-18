@@ -803,6 +803,10 @@ export interface PlayerCredit {
   slotsGivenAway: number;
   slotsClaimed: number;
   slotsSettled: number; // Count of slots already marked as settled
+  slotsGivenAway1h: number;
+  slotsGivenAway2h: number;
+  slotsClaimed1h: number;
+  slotsClaimed2h: number;
 }
 
 export interface SimplifiedDebt {

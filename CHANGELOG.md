@@ -2,13 +2,24 @@
 
 All notable changes to the Summer Hoops Scheduler project will be documented in this file.
 
+## [2.12.1] - 2025-08-17
+
+### Added
+- **Enhanced Settlement Overview**: Added 1-hour vs 2-hour slot breakdown in settlement calculations
+- **Collapsible Info Panel**: Made the settlement calculation explanation collapsible for cleaner UI
+
+### Improved
+- **Settlement UI**: Cleaner, more readable settlement overview with better spacing and alignment
+
+### Fixed
+- **Settlement Calculation Logic**: Refined opt-out logic to properly exclude transactions when players opt out
+- **API Response Standardization**: Consistent response format across all settlement endpoints
+
 ## [2.12.0] - 2025-08-17
 
 ### Added
-- **The Bank**: Automated settlement calculation feature with player credit tracking
+- **The Bank tab**: Tab with player credit tracking
 - **Smart Settlement Toggle**: Players can opt in/out of automated settlement calculations
-- **Settlement Overview**: Complete overview of all players' settlement balances
-- **Personal Settlement Card**: Individual settlement information with transaction details
 
 ## [2.11.2] - 2025-08-15
 

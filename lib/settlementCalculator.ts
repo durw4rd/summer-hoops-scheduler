@@ -29,7 +29,11 @@ export class SettlementCalculator {
               credits: 0,
               slotsGivenAway: 0,
               slotsClaimed: 0,
-              slotsSettled: 0
+              slotsSettled: 0,
+              slotsGivenAway1h: 0,
+              slotsGivenAway2h: 0,
+              slotsClaimed1h: 0,
+              slotsClaimed2h: 0
             });
           }
           playerCredits.get(slot.Player)!.slotsSettled += 1;
@@ -57,42 +61,68 @@ export class SettlementCalculator {
       // Calculate slot cost based on duration
       const slotCost = this.getSlotCost(slot.Time);
 
-      // Count slots given away (player in 'Player' column)
-      // Only count if the original player has opted in to smartSettle
+      // Get both players involved in this transaction
       const originalPlayer = slot.Player;
+      const claimedBy = slot.ClaimedBy;
+      
+      // Check if the original player (who gave away the slot) has opted in to smartSettle
+      // If they opted out, exclude this entire transaction from calculations
       const originalPlayerPrefs = userPreferences[originalPlayer];
       const originalPlayerOptedIn = originalPlayerPrefs?.smartSettle !== false;
       
+      // Only process this transaction if the original player is opted in
       if (originalPlayerOptedIn) {
+        // Count slot given away by original player
         if (!playerCredits.has(originalPlayer)) {
           playerCredits.set(originalPlayer, {
             playerName: originalPlayer,
             credits: 0,
             slotsGivenAway: 0,
             slotsClaimed: 0,
-            slotsSettled: 0
+            slotsSettled: 0,
+            slotsGivenAway1h: 0,
+            slotsGivenAway2h: 0,
+            slotsClaimed1h: 0,
+            slotsClaimed2h: 0
           });
         }
-        const playerCredit = playerCredits.get(originalPlayer)!;
-        playerCredit.credits = parseFloat((playerCredit.credits + slotCost).toFixed(2));
-        playerCredit.slotsGivenAway += 1;
-      }
+        const originalPlayerCredit = playerCredits.get(originalPlayer)!;
+        originalPlayerCredit.credits = parseFloat((originalPlayerCredit.credits + slotCost).toFixed(2));
+        originalPlayerCredit.slotsGivenAway += 1;
+        
+        // Track 1h vs 2h slots given away
+        if (slotCost === this.SLOT_COST_1H) {
+          originalPlayerCredit.slotsGivenAway1h += 1;
+        } else {
+          originalPlayerCredit.slotsGivenAway2h += 1;
+        }
 
-      // Count slots claimed (player in 'ClaimedBy' column)
-      // Always count claimed slots, regardless of the claimer's smartSettle preference
-      const claimedBy = slot.ClaimedBy;
-      if (!playerCredits.has(claimedBy)) {
-        playerCredits.set(claimedBy, {
-          playerName: claimedBy,
-          credits: 0,
-          slotsGivenAway: 0,
-          slotsClaimed: 0,
-          slotsSettled: 0
-        });
+        // Count slot claimed by the claimer
+        if (!playerCredits.has(claimedBy)) {
+          playerCredits.set(claimedBy, {
+            playerName: claimedBy,
+            credits: 0,
+            slotsGivenAway: 0,
+            slotsClaimed: 0,
+            slotsSettled: 0,
+            slotsGivenAway1h: 0,
+            slotsGivenAway2h: 0,
+            slotsClaimed1h: 0,
+            slotsClaimed2h: 0
+          });
+        }
+        const claimerCredit = playerCredits.get(claimedBy)!;
+        claimerCredit.credits = parseFloat((claimerCredit.credits - slotCost).toFixed(2));
+        claimerCredit.slotsClaimed += 1;
+        
+        // Track 1h vs 2h slots claimed
+        if (slotCost === this.SLOT_COST_1H) {
+          claimerCredit.slotsClaimed1h += 1;
+        } else {
+          claimerCredit.slotsClaimed2h += 1;
+        }
       }
-      const playerCredit = playerCredits.get(claimedBy)!;
-      playerCredit.credits = parseFloat((playerCredit.credits - slotCost).toFixed(2));
-      playerCredit.slotsClaimed += 1;
+      // If either player has opted out, the entire transaction is excluded
     }
 
     return Array.from(playerCredits.values());

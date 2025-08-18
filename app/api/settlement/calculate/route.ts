@@ -36,17 +36,20 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      settlements,
-      summary: {
-        totalDebt: parseFloat(totalDebt.toFixed(2)),
-        numberOfTransactions: settlements.length,
-        numberOfPlayers: uniquePlayers.size,
-        totalSlots: creditBreakdown.summary.totalSlots,
-        eligibleSlots: creditBreakdown.summary.eligibleSlots,
-        totalCredits: parseFloat(creditBreakdown.summary.totalCredits.toFixed(2)),
-        totalDebits: parseFloat(creditBreakdown.summary.totalDebits.toFixed(2)),
-        netBalance: parseFloat(creditBreakdown.summary.netBalance.toFixed(2)),
-        calculatedAt: new Date().toISOString()
+      data: {
+        settlements,
+        playerCredits: creditBreakdown.playerCredits,
+        summary: {
+          totalDebt: parseFloat(totalDebt.toFixed(2)),
+          numberOfTransactions: settlements.length,
+          numberOfPlayers: uniquePlayers.size,
+          totalSlots: creditBreakdown.summary.totalSlots,
+          eligibleSlots: creditBreakdown.summary.eligibleSlots,
+          totalCredits: parseFloat(creditBreakdown.summary.totalCredits.toFixed(2)),
+          totalDebits: parseFloat(creditBreakdown.summary.totalDebits.toFixed(2)),
+          netBalance: parseFloat(creditBreakdown.summary.netBalance.toFixed(2)),
+          calculatedAt: new Date().toISOString()
+        }
       }
     });
   } catch (error) {
@@ -55,17 +58,20 @@ export async function GET(request: NextRequest) {
       { 
         success: false, 
         error: 'Failed to calculate settlements',
-        settlements: [],
-        summary: {
-          totalDebt: 0,
-          numberOfTransactions: 0,
-          numberOfPlayers: 0,
-          totalSlots: 0,
-          eligibleSlots: 0,
-          totalCredits: 0,
-          totalDebits: 0,
-          netBalance: 0,
-          calculatedAt: new Date().toISOString()
+        data: {
+          settlements: [],
+          playerCredits: [],
+          summary: {
+            totalDebt: 0,
+            numberOfTransactions: 0,
+            numberOfPlayers: 0,
+            totalSlots: 0,
+            eligibleSlots: 0,
+            totalCredits: 0,
+            totalDebits: 0,
+            netBalance: 0,
+            calculatedAt: new Date().toISOString()
+          }
         }
       }, 
       { status: 500 }

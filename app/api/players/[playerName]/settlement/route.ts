@@ -49,20 +49,22 @@ export async function GET(
 
     return NextResponse.json({
       success: true,
-      playerName: decodedPlayerName,
-      settlements: playerSettlements,
-      summary,
-      playerCredit: playerCredit || {
+      data: {
         playerName: decodedPlayerName,
-        credits: 0,
-        slotsGivenAway: 0,
-        slotsClaimed: 0
-      },
-      userPreference: {
-        smartSettle: userPreference?.smartSettle ?? true,
-        email: userPreference?.email,
-        color: userPreference?.color,
-        role: userPreference?.role
+        settlements: playerSettlements,
+        summary,
+        playerCredit: playerCredit || {
+          playerName: decodedPlayerName,
+          credits: 0,
+          slotsGivenAway: 0,
+          slotsClaimed: 0
+        },
+        userPreference: {
+          smartSettle: userPreference?.smartSettle ?? true,
+          email: userPreference?.email,
+          color: userPreference?.color,
+          role: userPreference?.role
+        }
       }
     });
   } catch (error) {
@@ -71,11 +73,13 @@ export async function GET(
       { 
         success: false, 
         error: 'Failed to get player settlement data',
-        playerName: 'unknown',
-        settlements: [],
-        summary: { owes: 0, owed: 0, netAmount: 0 },
-        playerCredit: null,
-        userPreference: null
+        data: {
+          playerName: 'unknown',
+          settlements: [],
+          summary: { owes: 0, owed: 0, netAmount: 0 },
+          playerCredit: null,
+          userPreference: null
+        }
       }, 
       { status: 500 }
     );

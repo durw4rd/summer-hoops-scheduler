@@ -497,7 +497,7 @@ export default function SummerHoopsScheduler() {
       const savedTab = loadFromStorage(tabKey, 'schedule');
       
       // Validate that the saved tab is still available
-      const validTabs = ['schedule', 'available'];
+      const validTabs = ['schedule', 'available', 'settlement'];
       if (showFlagsTab) {
         validTabs.push('flags');
       }

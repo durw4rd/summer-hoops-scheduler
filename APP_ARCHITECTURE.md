@@ -52,14 +52,52 @@ interface UserMapping {
   [playerName: string]: { 
     email: string; 
     color?: string; 
+    role?: string;
+    smartSettle?: boolean;
   };
 }
 ```
 
 **Usage:**
 - Key = Player name (from Google Sheets column A)
-- Value = Object containing email (column B) and color (column C)
-- Example: `{ "John Smith": { email: "john@example.com", color: "#FF5733" } }`
+- Value = Object containing email (column B), color (column C), role (column D), and smartSettle preference (column E)
+- Example: `{ "John Smith": { email: "john@example.com", color: "#FF5733", role: "member", smartSettle: true } }`
+
+### PlayerCredit
+```typescript
+interface PlayerCredit {
+  playerName: string;
+  credits: number; // Positive = money owed to player, Negative = player owes money
+  slotsGivenAway: number;
+  slotsClaimed: number;
+  slotsSettled: number; // Count of slots already marked as settled
+  slotsGivenAway1h: number;
+  slotsGivenAway2h: number;
+  slotsClaimed1h: number;
+  slotsClaimed2h: number;
+}
+```
+
+**Usage:**
+- Tracks detailed settlement information for each player
+- Includes breakdown of 1-hour vs 2-hour slots for transparency
+- Used in settlement calculations and overview display
+
+### UserSettlementPreferences
+```typescript
+interface UserSettlementPreferences {
+  [playerName: string]: {
+    smartSettle: boolean;
+    email: string;
+    color?: string;
+    role?: string;
+  };
+}
+```
+
+**Usage:**
+- Manages player opt-in/opt-out preferences for settlement calculations
+- Integrated with user mapping for comprehensive player data
 
 ## API Routes
 
@@ -98,6 +136,33 @@ interface UserMapping {
 - **Used by**: ClaimConfirmationModal component
 
 #### DELETE `/api/slots`
+- **Purpose**: Retract an offered slot
+- **Body**: `{ slotId: string }`
+- **Returns**: `{ success: boolean }`
+- **Used by**: SlotCard component
+
+### Settlement System
+
+#### GET `/api/settlement/calculate`
+- **Purpose**: Calculate settlement overview for all players
+- **Returns**: `{ success: boolean, data: { settlements: SimplifiedDebt[], playerCredits: PlayerCredit[], summary: object } }`
+- **Used by**: SettlementOverview component
+
+#### GET `/api/players/preferences`
+- **Purpose**: Fetch all player smartSettle preferences
+- **Returns**: `{ success: boolean, data: UserSettlementPreferences }`
+- **Used by**: SettlementTab component
+
+#### POST `/api/players/preferences`
+- **Purpose**: Update player smartSettle preference
+- **Body**: `{ playerName: string, smartSettle: boolean }`
+- **Returns**: `{ success: boolean, data: { playerName: string, smartSettle: boolean, message: string } }`
+- **Used by**: SettlementTab component
+
+#### GET `/api/players/[playerName]/settlement`
+- **Purpose**: Get individual player settlement data
+- **Returns**: `{ success: boolean, data: { playerName: string, settlements: SimplifiedDebt[], summary: object, playerCredit: PlayerCredit, userPreference: object } }`
+- **Used by**: Individual player settlement views
 - **Purpose**: Retract an offered slot (entry in the Marketplace sheet remains but the status is changed to 'retracted')
 - **Body**: `{ slotId: string }`
 - **Returns**: `{ success: boolean }`
@@ -229,6 +294,24 @@ interface UserMapping {
   - Confirm reassignment
 - **Props**: session info, onConfirm, etc.
 
+### SettlementTab
+- **Purpose**: Main container for settlement features
+- **Key Features**:
+  - Smart settlement toggle for current player
+  - Collapsible info panel explaining calculations
+  - Integration with SettlementOverview component
+- **Props**: currentPlayer
+
+### SettlementOverview
+- **Purpose**: Display comprehensive settlement overview
+- **Key Features**:
+  - Player credit/debit overview with 1h/2h slot breakdown
+  - Grid-based layout for consistent alignment
+  - Categorized display (creditors, debtors, neutral)
+  - Refresh functionality
+- **Props**: currentPlayer
+- **Ref**: Exposes refresh() method for parent components
+
 ## Google Sheets Integration
 
 ### Sheet Structure
@@ -249,6 +332,13 @@ interface UserMapping {
 - `findSlotById()`: Find slot by ID
 - `migrateExistingSlots()`: Add IDs to existing slots
 - `updateExpiredSlots()`: Mark slots as expired
+- `updateUserSmartSettlePreference()`: Update player smartSettle preference
+
+### Settlement Calculation (`lib/settlementCalculator.ts`)
+- `calculatePlayerCredits()`: Calculate credits/debits for all players
+- `simplifyCredits()`: Simplify debts between players (Splitwise-like algorithm)
+- `getSlotCost()`: Determine slot cost based on duration (1h = €3.80, 2h = €7.60)
+- **Opt-out Logic**: Players who opt out have their given-away slots excluded from calculations
 
 ## Feature Flags (LaunchDarkly)
 
