@@ -173,8 +173,6 @@ export default function SummerHoopsScheduler() {
   };
 
   const fetchTournamentData = useCallback(async (): Promise<void> => {
-    if (!showTournamentFeatures) return;
-    
     try {
       setTournamentDataLoading(true);
       const res = await fetch("/api/tournament");
@@ -187,7 +185,7 @@ export default function SummerHoopsScheduler() {
     } finally {
       setTournamentDataLoading(false);
     }
-  }, [showTournamentFeatures]);
+  }, []);
 
   // Event handlers
   const handleTabChange = (tab: string): void => {
