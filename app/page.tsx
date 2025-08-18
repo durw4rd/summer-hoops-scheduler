@@ -10,7 +10,7 @@ import SwapModal from "@/components/SwapModal";
 import ClaimConfirmationModal from "@/components/ClaimConfirmationModal";
 import ScheduleTab from "@/components/ScheduleTab";
 import MarketplaceTab from "@/components/MarketplaceTab";
-// import SettlementTab from "@/components/SettlementTab";
+import SettlementTab from "@/components/SettlementTab";
 import RegisterPrompt from "@/components/RegisterPrompt";
 import LaunchDarklyDebug from "@/components/LaunchDarklyDebug";
 import TournamentSplash from "@/components/TournamentSplash";

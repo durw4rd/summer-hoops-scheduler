@@ -389,7 +389,7 @@ export default function ScheduleCard({
       </CardContent>
       
       {/* Tournament Features - Only show for tournament session (20.08) */}
-      {game.date === '20.08' && showTournamentFeatures && playerName && (
+      {game.date === '20.08' && playerName && (
         <div className="px-6 pb-6">
           {/* Check if user is attending the tournament */}
           {game.sessions.some((session: any) => 

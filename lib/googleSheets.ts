@@ -16,7 +16,7 @@ const RANGE_SCHEDULE = `${SHEET_DAILY_SCHEDULE}!B5:D`;
 /** Range for the marketplace sheet (now includes ID column) */
 const RANGE_SLOTS = `${SHEET_MARKETPLACE}!A:K`;
 /** Range for the user mapping sheet */
-const RANGE_USER_MAPPING = `${SHEET_USER_MAPPING}!A2:D`;
+const RANGE_USER_MAPPING = `${SHEET_USER_MAPPING}!A2:E`;
 /** Range for the tournament sheet (4 columns, 5 rows: team names + 4 players each) */
 const RANGE_TOURNAMENT = `${SHEET_TOURNAMENT}!A1:D5`;
 /** The starting row for the schedule (for C column updates) */
@@ -61,17 +61,22 @@ export async function getSchedule() {
 export async function getUserMapping() {
   const sheets = await getGoogleSheetsClient();
   const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
-  // Read all rows from A2:C (skip header)
+  // Read all rows from A2:E (skip header, includes smartSettle column)
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId,
     range: RANGE_USER_MAPPING,
   });
   const values = res.data.values || [];
-  // Convert to mapping: { [playerName]: { email, color, role } }
-  const mapping: Record<string, { email: string; color?: string; role?: string }> = {};
+  // Convert to mapping: { [playerName]: { email, color, role, smartSettle } }
+  const mapping: Record<string, { email: string; color?: string; role?: string; smartSettle: boolean }> = {};
   for (const row of values) {
     if (row[0] && row[1]) {
-      mapping[row[0]] = { email: row[1], color: row[2], role: row[3] };
+      mapping[row[0]] = { 
+        email: row[1], 
+        color: row[2], 
+        role: row[3], 
+        smartSettle: row[4] !== 'false' && row[4] !== 'FALSE' && row[4] !== false // Default to true unless explicitly false
+      };
     }
   }
   return mapping;
@@ -694,4 +699,124 @@ export async function getTournamentTeams(): Promise<TournamentData> {
     console.error('Error fetching tournament teams:', error);
     return { teams: [] };
   }
+}
+
+/**
+ * Updates a user's smartSettle preference in the Google Sheet.
+ */
+export async function updateUserSettlementPreference({ playerName, smartSettle }: { playerName: string; smartSettle: boolean }) {
+  const sheets = await getGoogleSheetsClient();
+  const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
+  
+  // First, find the row number for this player
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: RANGE_USER_MAPPING,
+  });
+  
+  const values = res.data.values || [];
+  const playerRowIndex = values.findIndex(row => row[0] === playerName);
+  
+  if (playerRowIndex === -1) {
+    throw new Error(`Player ${playerName} not found in user mapping`);
+  }
+  
+  // Update the smartSettle column (E column, 5th column, index 4)
+  const actualRowNumber = playerRowIndex + 2; // +2 because we start from A2 and arrays are 0-indexed
+  
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `${SHEET_USER_MAPPING}!E${actualRowNumber}`,
+    valueInputOption: 'USER_ENTERED',
+    requestBody: {
+      values: [[smartSettle.toString()]],
+    },
+  });
+  
+  return { success: true };
+}
+
+
+
+/**
+ * Mark settlement as complete and update related marketplace slots
+ */
+export async function markSettlementComplete({ fromPlayer, toPlayer, relatedSlotIds }: { 
+  fromPlayer: string; 
+  toPlayer: string; 
+  relatedSlotIds: string[] 
+}) {
+  const sheets = await getGoogleSheetsClient();
+  const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
+  
+  // Get all slots to find the ones that need to be marked as settled
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: RANGE_SLOTS,
+  });
+  
+  const values = res.data.values || [];
+  const header = values[0];
+  const rows = values.slice(1);
+  
+  // Find slots that are part of this settlement
+  const updates: any[] = [];
+  
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const slotId = row[0]; // ID column
+    const originalPlayer = row[3]; // Player column
+    const claimedBy = row[8]; // ClaimedBy column
+    const settled = row[10]; // Settled column
+    
+    // Check if this slot is part of the settlement and not already settled
+    if (relatedSlotIds.includes(slotId) && 
+        originalPlayer === fromPlayer && 
+        claimedBy === toPlayer && 
+        settled !== 'yes') {
+      
+      updates.push({
+        range: `${SHEET_MARKETPLACE}!K${i + 2}`, // K column (Settled), +2 for header and 1-based index
+        values: [['yes']]
+      });
+    }
+  }
+  
+  // Apply all updates
+  if (updates.length > 0) {
+    await sheets.spreadsheets.values.batchUpdate({
+      spreadsheetId,
+      requestBody: {
+        valueInputOption: 'USER_ENTERED',
+        data: updates
+      }
+    });
+  }
+  
+  return { success: true, updatedSlots: updates.length };
+}
+
+// Settlement Types and Interfaces
+export interface PlayerCredit {
+  playerName: string;
+  credits: number; // Positive = money owed to player, Negative = player owes money
+  slotsGivenAway: number;
+  slotsClaimed: number;
+  slotsSettled: number; // Count of slots already marked as settled
+}
+
+export interface SimplifiedDebt {
+  fromPlayer: string;
+  toPlayer: string;
+  amount: number;
+  description: string;
+}
+
+export interface UserSettlementPreferences {
+  [playerName: string]: {
+    smartSettle: boolean;
+    email: string;
+    color?: string;
+    role?: string;
+  };
 }

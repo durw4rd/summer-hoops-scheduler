@@ -2,6 +2,14 @@
 
 All notable changes to the Summer Hoops Scheduler project will be documented in this file.
 
+## [2.12.0] - 2025-08-17
+
+### Added
+- **The Bank**: Automated settlement calculation feature with player credit tracking
+- **Smart Settlement Toggle**: Players can opt in/out of automated settlement calculations
+- **Settlement Overview**: Complete overview of all players' settlement balances
+- **Personal Settlement Card**: Individual settlement information with transaction details
+
 ## [2.11.2] - 2025-08-15
 
 ### Fixed
