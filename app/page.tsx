@@ -523,10 +523,10 @@ export default function SummerHoopsScheduler() {
   }, [status, session]);
 
   useEffect(() => {
-    if (status === "authenticated" && session && showTournamentFeatures) {
+    if (status === "authenticated" && session) {
       fetchTournamentData();
     }
-  }, [status, session, showTournamentFeatures, fetchTournamentData]);
+  }, [status, session, fetchTournamentData]);
 
   useEffect(() => {
     if (!playerName || !schedule.length || tournamentSplashOptOut || tournamentVideoOptOut) return;
