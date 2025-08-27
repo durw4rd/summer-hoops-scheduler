@@ -28,8 +28,9 @@ export async function POST(req: NextRequest) {
     const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
 
     // 1. Update the schedule: remove fromPlayer, add toPlayer for the session
-    // Fetch the schedule rows
-    const scheduleRange = `${SCHEDULE_SHEET}!B5:C28`;
+    // Fetch the schedule rows - start from B5 but no upper limit
+    const scheduleRange = `${SCHEDULE_SHEET}!B5:C`;
+    
     const scheduleRes = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range: scheduleRange,
@@ -39,12 +40,20 @@ export async function POST(req: NextRequest) {
     // Find the row for the session
     let sessionRowIdx = -1;
     let players: string[] = [];
+    
     for (let i = 0; i < scheduleRows.length; i++) {
       const [details, playerList] = scheduleRows[i];
       if (!details) continue;
+      
       // Format: 'DD.MM / weekDay / HH:MM - HH:MM'
       const [rowDate, , rowTime] = details.split(' / ');
-      if (normalizeDate(rowDate?.trim()) === normalizeDate(date) && rowTime?.trim() === time) {
+      
+      const normalizedRowDate = normalizeDate(rowDate?.trim());
+      const normalizedRequestDate = normalizeDate(date);
+      const rowTimeTrimmed = rowTime?.trim();
+      const requestTimeTrimmed = time?.trim();
+      
+      if (normalizedRowDate === normalizedRequestDate && rowTimeTrimmed === requestTimeTrimmed) {
         sessionRowIdx = i;
         players = (playerList || '').split(',').map((p: string) => p.trim()).filter(Boolean);
         break;
@@ -64,9 +73,11 @@ export async function POST(req: NextRequest) {
     }
 
     // Write back the updated player list
+    // Since we're fetching from B5:C, we need to add 5 to get the actual row number
+    const actualRowNumber = sessionRowIdx + 5;
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: `${SCHEDULE_SHEET}!C${sessionRowIdx + 5}`,
+      range: `${SCHEDULE_SHEET}!C${actualRowNumber}`,
       valueInputOption: 'USER_ENTERED',
       requestBody: { values: [[players.join(', ')]] },
     });
