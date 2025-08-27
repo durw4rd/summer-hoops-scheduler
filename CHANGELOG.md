@@ -2,6 +2,17 @@
 
 All notable changes to the Summer Hoops Scheduler project will be documented in this file.
 
+## [2.13.0] - 2025-08-28
+
+### Added
+- **Advanced Marketplace Filtering**: Added the ability to filter by players who either gave away or claimed the slots. Replaced simple toggle filters with comprehensive status-based filtering system.
+
+### Improved
+- **Marketplace Filter UX**: Cleaner interface with one comprehensive filter instead of three separate toggles
+
+### Fixed
+- **Admin Reassign Range**: Fixed admin-reassign API to cover all schedule rows (B5:C) instead of limited B5:C28 range
+
 ## [2.12.1] - 2025-08-17
 
 ### Added
