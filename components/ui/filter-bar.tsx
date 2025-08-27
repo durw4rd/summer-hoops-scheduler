@@ -22,7 +22,7 @@ const useIsMobile = () => {
 
 export interface FilterItem {
   id: string;
-  type: 'toggle' | 'dropdown' | 'multi-select';
+  type: 'toggle' | 'dropdown' | 'multi-select' | 'toggle-buttons';
   label: string;
   value: any;
   options?: Array<{value: string, label: string}>;
@@ -50,7 +50,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
   const isMobile = useIsMobile();
   const [isOpen, setIsOpen] = useState(isMobile ? false : isExpanded);
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const dropdownRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   // Sync with external expanded state
   useEffect(() => {
@@ -58,10 +58,14 @@ const FilterBar: React.FC<FilterBarProps> = ({
   }, [isExpanded]);
 
   // Close dropdown when clicking outside
-  useEffect(() => {
+    useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setDropdownOpen(null);
+      // Check if click is outside any open dropdown
+      if (dropdownOpen) {
+        const currentRef = dropdownRefs.current[dropdownOpen];
+        if (currentRef && !currentRef.contains(event.target as Node)) {
+          setDropdownOpen(null);
+        }
       }
     };
 
@@ -83,6 +87,8 @@ const FilterBar: React.FC<FilterBarProps> = ({
   const handleFilterChange = (filterId: string, value: any) => {
     onFilterChange(filterId, value);
   };
+
+
 
   const renderFilter = (filter: FilterItem) => {
     switch (filter.type) {
@@ -109,7 +115,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
 
       case 'dropdown':
         return (
-          <div key={filter.id} className="relative" ref={dropdownRef}>
+          <div key={filter.id} className="relative" ref={(el) => { dropdownRefs.current[filter.id] = el; }}>
             <button
               onClick={() => setDropdownOpen(dropdownOpen === filter.id ? null : filter.id)}
               className="flex items-center justify-between w-full px-4 py-3 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 touch-manipulation"
@@ -145,17 +151,19 @@ const FilterBar: React.FC<FilterBarProps> = ({
 
       case 'multi-select':
         return (
-          <div key={filter.id} className="relative" ref={dropdownRef}>
+          <div key={filter.id} className="relative" ref={(el) => { dropdownRefs.current[filter.id] = el; }}>
             <button
               onClick={() => setDropdownOpen(dropdownOpen === filter.id ? null : filter.id)}
               className="flex items-center justify-between w-full px-4 py-3 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 touch-manipulation"
               disabled={filter.disabled}
             >
               <span className="truncate">
-                {filter.value?.has('all') ? 'All Events' : 
-                 filter.value?.size === 1 ? 
+                {filter.value && filter.value instanceof Set && filter.value.has('all') ? 
+                   filter.options?.find(opt => opt.value === 'all')?.label || 'All' : 
+                 filter.value && filter.value instanceof Set && filter.value.size === 1 ? 
                    filter.options?.find(opt => opt.value === Array.from(filter.value)[0])?.label :
-                   `${filter.value?.size || 0} selected`}
+                 filter.value && filter.value instanceof Set ? 
+                   `${filter.value.size} selected` : 'All'}
               </span>
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -164,35 +172,39 @@ const FilterBar: React.FC<FilterBarProps> = ({
             
             {dropdownOpen === filter.id && filter.options && (
               <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
-                <div 
-                  className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 cursor-pointer touch-manipulation"
-                  onClick={() => {
-                    const newValue = new Set(['all']);
-                    handleFilterChange(filter.id, newValue);
-                    setDropdownOpen(null);
-                  }}
-                >
-                  <span>All Events</span>
-                  {filter.value?.has('all') && <span className="text-blue-600">✓</span>}
-                </div>
                 {filter.options.map(option => (
                   <div 
                     key={option.value}
                     className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 cursor-pointer touch-manipulation"
                     onClick={() => {
-                      const newValue = new Set(filter.value);
-                      if (newValue.has(option.value)) {
-                        newValue.delete(option.value);
-                        if (newValue.size === 0) newValue.add('all');
+                      // Ensure we have a valid Set to work with
+                      const currentValue = filter.value instanceof Set ? new Set(filter.value) : new Set(['all']);
+                      
+                      if (option.value === 'all') {
+                        // If clicking "All", reset to just "All"
+                        const newValue = new Set(['all']);
+                        handleFilterChange(filter.id, newValue);
+                        setDropdownOpen(null);
+                      } else if (currentValue.has(option.value)) {
+                        // Remove this option
+                        currentValue.delete(option.value);
+                        // If no options left, default to "All"
+                        if (currentValue.size === 0) {
+                          currentValue.add('all');
+                        }
+                        handleFilterChange(filter.id, currentValue);
+                        // Don't close dropdown - keep it open for multiple selections
                       } else {
-                        newValue.delete('all');
-                        newValue.add(option.value);
+                        // Add this option, but remove "All" since we're selecting specific items
+                        currentValue.delete('all');
+                        currentValue.add(option.value);
+                        handleFilterChange(filter.id, currentValue);
+                        // Don't close dropdown - keep it open for multiple selections
                       }
-                      handleFilterChange(filter.id, newValue);
                     }}
                   >
                     <span>{option.label}</span>
-                    {filter.value?.has(option.value) && <span className="text-blue-600">✓</span>}
+                    {filter.value && filter.value instanceof Set && filter.value.has(option.value) && <span className="text-blue-600">✓</span>}
                   </div>
                 ))}
               </div>
@@ -200,10 +212,53 @@ const FilterBar: React.FC<FilterBarProps> = ({
           </div>
         );
 
+      case 'toggle-buttons':
+        return (
+          <div key={filter.id} className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">{filter.label}</label>
+            <div className="flex flex-wrap gap-2">
+              {filter.options?.map(option => (
+                <button
+                  key={option.value}
+                  onClick={() => {
+                    const currentValue = filter.value instanceof Set ? new Set(filter.value) : new Set(['all']);
+                    
+                    if (option.value === 'all') {
+                      // If clicking "All", reset to just "All"
+                      handleFilterChange(filter.id, new Set(['all']));
+                    } else if (currentValue.has(option.value)) {
+                      // Remove this option
+                      currentValue.delete(option.value);
+                      // If no options left, default to "All"
+                      if (currentValue.size === 0) {
+                        currentValue.add('all');
+                      }
+                      handleFilterChange(filter.id, currentValue);
+                    } else {
+                      // Add this option, but remove "All" since we're selecting specific items
+                      currentValue.delete('all');
+                      currentValue.add(option.value);
+                      handleFilterChange(filter.id, currentValue);
+                    }
+                  }}
+                  className={cn(
+                    "px-3 py-1.5 text-xs rounded-md border transition-colors",
+                    filter.value instanceof Set && filter.value.has(option.value)
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                  )}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+
       default:
         return null;
-    }
-  };
+      }
+    };
 
   return (
     <div className={cn("bg-gray-50 border border-gray-200 rounded-lg p-3", className)}>

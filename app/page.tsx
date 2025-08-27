@@ -82,7 +82,6 @@ export default function SummerHoopsScheduler() {
   const [showAll, setShowAll] = useState(false);
   const [showPast, setShowPast] = useState(false);
   const [condensedMode, setCondensedMode] = useState(false);
-  const [showOnlyMine, setShowOnlyMine] = useState(false);
   const [showInactiveSlots, setShowInactiveSlots] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("schedule");
   
@@ -657,8 +656,6 @@ export default function SummerHoopsScheduler() {
                 handleSettleSlot={handleSettleSlot}
                 showInactiveSlots={showInactiveSlots}
                 setShowInactiveSlots={setShowInactiveSlots}
-                showOnlyMine={showOnlyMine}
-                setShowOnlyMine={setShowOnlyMine}
                 slotsLoading={slotsLoading}
                 getPlayerColor={getPlayerColor}
                 isEligibleForSwap={(slot) => {

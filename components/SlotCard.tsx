@@ -23,6 +23,7 @@ interface SlotCardProps {
   acceptSwapEligible: boolean;
   onClaimClick: (slot: any, claimSessionId: string) => void;
   adminMode?: boolean;
+  onPlayerNameClick?: (playerName: string, type: 'offered' | 'claimed') => void;
 }
 
 // Utility function to get comprehensive status information
@@ -37,6 +38,8 @@ const getStatusInfo = (slot: any) => {
           badge: 'Swap Offer', 
           color: 'blue', 
           details: null,
+          detailsType: null,
+          detailsPlayer: null,
           borderColor: 'border-l-blue-400',
           isSettled
         };
@@ -45,6 +48,8 @@ const getStatusInfo = (slot: any) => {
           badge: 'Up For Grabs', 
           color: 'yellow', 
           details: null,
+          detailsType: null,
+          detailsPlayer: null,
           borderColor: 'border-l-yellow-400',
           isSettled
         };
@@ -54,6 +59,8 @@ const getStatusInfo = (slot: any) => {
         badge: 'Claimed', 
         color: 'green', 
         details: slot.ClaimedBy ? `by ${slot.ClaimedBy}` : null,
+        detailsType: 'by',
+        detailsPlayer: slot.ClaimedBy,
         borderColor: 'border-l-green-400',
         isSettled
       };
@@ -62,6 +69,8 @@ const getStatusInfo = (slot: any) => {
         badge: 'Retracted', 
         color: 'gray', 
         details: null,
+        detailsType: null,
+        detailsPlayer: null,
         borderColor: 'border-l-gray-400',
         isSettled
       };
@@ -70,6 +79,8 @@ const getStatusInfo = (slot: any) => {
         badge: 'Reassigned', 
         color: 'blue', 
         details: slot.ClaimedBy ? `to ${slot.ClaimedBy}` : null,
+        detailsType: 'to',
+        detailsPlayer: slot.ClaimedBy,
         borderColor: 'border-l-blue-400',
         isSettled
       };
@@ -78,6 +89,8 @@ const getStatusInfo = (slot: any) => {
         badge: 'Admin Reassigned', 
         color: 'red', 
         details: slot.ClaimedBy ? `to ${slot.ClaimedBy}` : null,
+        detailsType: 'to',
+        detailsPlayer: slot.ClaimedBy,
         borderColor: 'border-l-red-400',
         isSettled
       };
@@ -86,6 +99,8 @@ const getStatusInfo = (slot: any) => {
         badge: 'Expired', 
         color: 'gray', 
         details: null,
+        detailsType: null,
+        detailsPlayer: null,
         borderColor: 'border-l-gray-400',
         isSettled
       };
@@ -94,6 +109,8 @@ const getStatusInfo = (slot: any) => {
         badge: slot.Status || 'Unknown', 
         color: 'gray', 
         details: null,
+        detailsType: null,
+        detailsPlayer: null,
         borderColor: 'border-l-gray-400',
         isSettled
       };
@@ -150,6 +167,7 @@ export default function SlotCard({
   acceptSwapEligible,
   onClaimClick,
   adminMode = false,
+  onPlayerNameClick,
 }: SlotCardProps) {
   const statusInfo = getStatusInfo(slot);
   const formattedTimestamp = formatTimestamp(slot.Timestamp);
@@ -197,15 +215,36 @@ export default function SlotCard({
               {slot.Player.split(" ").map((n: string) => n[0]).join("")}
             </AvatarFallback>
           </Avatar>
-          <span className="text-sm font-medium">
-            {isOwner ? "You" : slot.Player.split(" ")[0]}
-          </span>
+          {onPlayerNameClick ? (
+            <button
+              onClick={() => onPlayerNameClick(slot.Player, 'offered')}
+              className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+            >
+              {isOwner ? "You" : slot.Player.split(" ")[0]}
+            </button>
+          ) : (
+            <span className="text-sm font-medium">
+              {isOwner ? "You" : slot.Player.split(" ")[0]}
+            </span>
+          )}
         </div>
         
         {/* Status details section */}
         {statusInfo.details && (
           <div className="text-xs text-gray-600 mt-1">
-            {statusInfo.details}
+            {statusInfo.detailsType && statusInfo.detailsPlayer && onPlayerNameClick ? (
+              <>
+                {statusInfo.detailsType}{' '}
+                <button
+                  onClick={() => onPlayerNameClick(statusInfo.detailsPlayer, 'claimed')}
+                  className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium"
+                >
+                  {statusInfo.detailsPlayer}
+                </button>
+              </>
+            ) : (
+              statusInfo.details
+            )}
           </div>
         )}
         

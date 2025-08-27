@@ -1,4 +1,3 @@
-import { Button } from "@/components/ui/button";
 import SlotCard from "@/components/SlotCard";
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import FilterBar, { FilterItem } from "@/components/ui/filter-bar";
@@ -18,8 +17,6 @@ interface MarketplaceTabProps {
   handleSettleSlot?: (slotId: string) => void;
   showInactiveSlots: boolean;
   setShowInactiveSlots: (v: (prev: boolean) => boolean) => void;
-  showOnlyMine: boolean;
-  setShowOnlyMine: (v: (prev: boolean) => boolean) => void;
   slotsLoading: boolean;
   getPlayerColor: (name: string) => string;
   isEligibleForSwap: (slot: any) => boolean;
@@ -41,8 +38,6 @@ const MarketplaceTab: React.FC<MarketplaceTabProps> = ({
   handleSettleSlot,
   showInactiveSlots,
   setShowInactiveSlots,
-  showOnlyMine,
-  setShowOnlyMine,
   slotsLoading,
   getPlayerColor,
   isEligibleForSwap,
@@ -50,11 +45,12 @@ const MarketplaceTab: React.FC<MarketplaceTabProps> = ({
   loggedInUser,
   adminMode = false,
 }) => {
-  const [showAllActive, setShowAllActive] = useState(true); // default to true - show all active offers
-  const [showMine, setShowMine] = useState(false); // default to false - don't show mine
-  const [showInactive, setShowInactive] = useState(false); // default to false - don't show inactive slots by default
-  const [showSettled, setShowSettled] = useState(false); // default to false - don't show settled slots by default
+  const [selectedStatuses, setSelectedStatuses] = useState<Set<string>>(new Set(['all'])); // default to showing all slots
   const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set(['all']));
+
+  // New player filtering states
+  const [offeredByPlayers, setOfferedByPlayers] = useState<Set<string>>(new Set(['all']));
+  const [claimedByPlayers, setClaimedByPlayers] = useState<Set<string>>(new Set(['all']));
 
   const [hasMounted, setHasMounted] = useState(false);
 
@@ -69,33 +65,34 @@ const MarketplaceTab: React.FC<MarketplaceTabProps> = ({
   useEffect(() => {
     if (hasMounted && loggedInUser?.user?.email) {
       const userId = loggedInUser.user.email;
-      
-      // Load showAllActive filter
-      const showAllActiveKey = getStorageKey(userId, 'available', 'showAllActive');
-      const savedShowAllActive = loadFromStorage(showAllActiveKey, true);
-      setShowAllActive(savedShowAllActive);
-      
-      // Load showMine filter
-      const showMineKey = getStorageKey(userId, 'available', 'showMine');
-      const savedShowMine = loadFromStorage(showMineKey, false);
-      setShowMine(savedShowMine);
-      
-      // Load showInactive filter
-      const showInactiveKey = getStorageKey(userId, 'available', 'showInactive');
-      const savedShowInactive = loadFromStorage(showInactiveKey, false);
-      setShowInactive(savedShowInactive);
-      
+
+      // Load selectedStatuses filter
+      const selectedStatusesKey = getStorageKey(userId, 'available', 'selectedStatuses');
+      const savedSelectedStatuses = loadFromStorage(selectedStatusesKey, ['all']);
+      if (savedSelectedStatuses && Array.isArray(savedSelectedStatuses)) {
+        setSelectedStatuses(new Set(savedSelectedStatuses));
+      }
+
+      // Load offeredByPlayers filter
+      const offeredByPlayersKey = getStorageKey(userId, 'available', 'offeredByPlayers');
+      const savedOfferedByPlayers = loadFromStorage(offeredByPlayersKey, ['all']);
+      if (savedOfferedByPlayers && Array.isArray(savedOfferedByPlayers)) {
+        setOfferedByPlayers(new Set(savedOfferedByPlayers));
+      }
+
+      // Load claimedByPlayers filter
+      const claimedByPlayersKey = getStorageKey(userId, 'available', 'claimedByPlayers');
+      const savedClaimedByPlayers = loadFromStorage(claimedByPlayersKey, ['all']);
+      if (savedClaimedByPlayers && Array.isArray(savedClaimedByPlayers)) {
+        setClaimedByPlayers(new Set(savedClaimedByPlayers));
+      }
+
       // Load selectedEvents filter
       const selectedEventsKey = getStorageKey(userId, 'available', 'selectedEvents');
       const savedSelectedEvents = loadFromStorage(selectedEventsKey, ['all']);
       if (savedSelectedEvents && Array.isArray(savedSelectedEvents)) {
         setSelectedEvents(new Set(savedSelectedEvents));
       }
-      
-      // Load showSettled filter
-      const showSettledKey = getStorageKey(userId, 'available', 'showSettled');
-      const savedShowSettled = loadFromStorage(showSettledKey, false);
-      setShowSettled(savedShowSettled);
     }
   }, [hasMounted, loggedInUser?.user?.email]);
 
@@ -103,23 +100,20 @@ const MarketplaceTab: React.FC<MarketplaceTabProps> = ({
   useEffect(() => {
     if (hasMounted && loggedInUser?.user?.email) {
       const userId = loggedInUser.user.email;
-      
-      const showAllActiveKey = getStorageKey(userId, 'available', 'showAllActive');
-      saveToStorage(showAllActiveKey, showAllActive);
-      
-      const showMineKey = getStorageKey(userId, 'available', 'showMine');
-      saveToStorage(showMineKey, showMine);
-      
-      const showInactiveKey = getStorageKey(userId, 'available', 'showInactive');
-      saveToStorage(showInactiveKey, showInactive);
-      
+
+      const selectedStatusesKey = getStorageKey(userId, 'available', 'selectedStatuses');
+      saveToStorage(selectedStatusesKey, Array.from(selectedStatuses));
+
+      const offeredByPlayersKey = getStorageKey(userId, 'available', 'offeredByPlayers');
+      saveToStorage(offeredByPlayersKey, Array.from(offeredByPlayers));
+
+      const claimedByPlayersKey = getStorageKey(userId, 'available', 'claimedByPlayers');
+      saveToStorage(claimedByPlayersKey, Array.from(claimedByPlayers));
+
       const selectedEventsKey = getStorageKey(userId, 'available', 'selectedEvents');
       saveToStorage(selectedEventsKey, Array.from(selectedEvents));
-      
-      const showSettledKey = getStorageKey(userId, 'available', 'showSettled');
-      saveToStorage(showSettledKey, showSettled);
     }
-  }, [hasMounted, showAllActive, showMine, showInactive, showSettled, selectedEvents, loggedInUser?.user?.email]);
+  }, [hasMounted, selectedStatuses, selectedEvents, offeredByPlayers, claimedByPlayers, loggedInUser?.user?.email]);
 
   // Extract unique events from slots for filtering
   const uniqueEvents = useMemo(() => {
@@ -146,9 +140,7 @@ const MarketplaceTab: React.FC<MarketplaceTabProps> = ({
 
 
   // Enhanced filtering logic with multi-event filtering
-  let baseSlots = showInactive ? allSlots : allSlots.filter((slot: any) => 
-    slot.Status === 'offered'
-  );
+  let baseSlots = [...allSlots]; // Start with all slots, let status filter handle the filtering
 
   // Client-side expiration check - mark slots as expired if they're more than 1 hour past their event time
   const expiredSlots: any[] = [];
@@ -172,7 +164,7 @@ const MarketplaceTab: React.FC<MarketplaceTabProps> = ({
             },
             body: JSON.stringify({ expiredSlots }),
           });
-          
+
           const result = await response.json();
           if (result.success && result.updatedCount > 0) {
             console.log(`Updated ${result.updatedCount} slots to expired status`);
@@ -181,95 +173,80 @@ const MarketplaceTab: React.FC<MarketplaceTabProps> = ({
           console.error('Error updating expired slots:', error);
         }
       };
-      
+
       updateExpiredSlots();
     }
   }, [expiredSlots.length]);
-  
+
   // Event filtering - show slots for any selected event
   if (!selectedEvents.has('all')) {
     baseSlots = baseSlots.filter((slot: any) => selectedEvents.has(slot.Date));
   }
-  
-  // Ownership filtering
-  if (!showMine) {
-    baseSlots = baseSlots.filter((slot: any) => slot.Player !== playerName);
-  }
-  
-  // Settled filtering
-  if (!showSettled) {
-    baseSlots = baseSlots.filter((slot: any) => slot.Settled !== 'yes');
-  }
-  
-  const filteredSlots = showAllActive
-    ? baseSlots
-    : baseSlots.filter((slot: any) => {
-        if (!playerName) return false;
-        // User's own offer (if showMine is true)
-        if (showMine && slot.Player === playerName) return true;
-        // Up for grabs: always show, even if user is already in session
-        if (slot.Status === 'offered' && slot.SwapRequested !== 'yes') {
-          return true;
-        }
-        // Swap offer: user is eligible to accept
-        if (slot.SwapRequested === 'yes' && isEligibleForSwap(slot)) return true;
-        return false;
-      });
 
-  // Create filter items for the FilterBar
-  const filterItems: FilterItem[] = [
-    {
-      id: 'eventFilter',
-      type: 'multi-select',
-      label: 'Filter by Dates',
-      value: selectedEvents,
-      options: uniqueEvents.map(event => ({
-        value: event,
-        label: `${event} (${getDayOfWeek(event)})${isDateInPast(event) ? ' (past)' : ''}`
-      })),
-    },
-    {
-      id: 'showAllActive',
-      type: 'toggle',
-      label: 'Show Only Eligible Offers',
-      value: !showAllActive,
-    },
-    {
-      id: 'showMine',
-      type: 'toggle',
-      label: 'Show My Offers',
-      value: showMine,
-    },
-    {
-      id: 'showInactive',
-      type: 'toggle',
-      label: 'Show Inactive',
-      value: showInactive,
-    },
-    {
-      id: 'showSettled',
-      type: 'toggle',
-      label: 'Show Settled',
-      value: showSettled,
-    },
-  ];
+  // Player origin filtering (who offered the slot)
+  if (!offeredByPlayers.has('all')) {
+    baseSlots = baseSlots.filter((slot: any) =>
+      slot.Player && offeredByPlayers.has(slot.Player)
+    );
+  }
+
+  // Player destination filtering (who claimed the slot)
+  if (!claimedByPlayers.has('all')) {
+    baseSlots = baseSlots.filter((slot: any) => {
+      // Show unclaimed slots if 'unclaimed' is selected
+      if (claimedByPlayers.has('unclaimed') && slot.Status === 'offered') {
+        return true;
+      }
+      // Show slots claimed by selected players
+      if (slot.ClaimedBy && claimedByPlayers.has(slot.ClaimedBy)) {
+        return true;
+      }
+      return false;
+    });
+  }
+
+  // Status-based filtering
+  baseSlots = baseSlots.filter((slot: any) => {
+    // If "all" is selected, show everything
+    if (selectedStatuses.has('all')) {
+      return true;
+    }
+    
+    // Check if the slot's status is in the selected statuses
+    if (selectedStatuses.has(slot.Status)) {
+      return true;
+    }
+    
+    // Handle special cases for status mapping
+    if (slot.Status === 'admin-reassigned' && selectedStatuses.has('reassigned')) {
+      return true;
+    }
+    
+    // Handle settled slots
+    if (slot.Settled === 'yes' && selectedStatuses.has('settled')) {
+      return true;
+    }
+    
+    return false;
+  });
+
+  const filteredSlots = baseSlots;
+
+
 
   const handleFilterChange = (filterId: string, value: any) => {
     switch (filterId) {
       case 'eventFilter':
         setSelectedEvents(value);
         break;
-      case 'showAllActive':
-        setShowAllActive(!value);
+      case 'offeredByPlayers':
+        setOfferedByPlayers(value);
         break;
-      case 'showMine':
-        setShowMine(value);
+      case 'claimedByPlayers':
+        setClaimedByPlayers(value);
         break;
-      case 'showInactive':
-        setShowInactive(value);
-        break;
-      case 'showSettled':
-        setShowSettled(value);
+      case 'statusFilter':
+        setSelectedStatuses(value);
         break;
     }
   };
@@ -281,7 +258,64 @@ const MarketplaceTab: React.FC<MarketplaceTabProps> = ({
           <div className="mb-2">
             <FilterBar
               title="Marketplace Filters"
-              filters={filterItems}
+              filters={[
+                {
+                  id: 'eventFilter',
+                  type: 'multi-select',
+                  label: 'Filter by Dates',
+                  value: selectedEvents,
+                  options: [
+                    { value: 'all', label: 'All events' },
+                    ...uniqueEvents.map(event => ({
+                      value: event,
+                      label: `${event} (${getDayOfWeek(event)})${isDateInPast(event) ? ' (past)' : ''}`
+                    }))
+                  ],
+                },
+                {
+                  id: 'offeredByPlayers',
+                  type: 'multi-select',
+                  label: 'Dropouts',
+                  value: offeredByPlayers,
+                  options: [
+                    { value: 'all', label: 'All dropouts' },
+                    ...Object.keys(userMapping).map(player => ({
+                      value: player,
+                      label: player
+                    }))
+                  ],
+                },
+                {
+                  id: 'claimedByPlayers',
+                  type: 'multi-select',
+                  label: 'Claimants',
+                  value: claimedByPlayers,
+                  options: [
+                    { value: 'all', label: 'All claimants' },
+                    { value: 'unclaimed', label: 'Unclaimed' },
+                    ...Object.keys(userMapping).map(player => ({
+                      value: player,
+                      label: player
+                    }))
+                  ],
+                },
+                {
+                  id: 'statusFilter',
+                  type: 'toggle-buttons',
+                  label: 'Slot Status',
+                  value: selectedStatuses,
+                  options: [
+                    { value: 'all', label: 'All' },
+                    { value: 'offered', label: 'Available' },
+                    { value: 'claimed', label: 'Claimed' },
+                    { value: 'retracted', label: 'Retracted' },
+                    { value: 'swapped', label: 'Swapped' },
+                    { value: 'reassigned', label: 'Reassigned' },
+                    { value: 'expired', label: 'Expired' },
+                    { value: 'settled', label: 'Settled' }
+                  ],
+                },
+              ]}
               onFilterChange={handleFilterChange}
               isExpanded={false}
             />
@@ -295,9 +329,15 @@ const MarketplaceTab: React.FC<MarketplaceTabProps> = ({
                 <div className="space-y-3">
                   {slotsArr.length === 0 ? (
                     <div className="text-center text-gray-500">
-                      {!selectedEvents.has('all') 
-                        ? `No slots available for the selected events.` 
-                        : 'No slots available in the marketplace.'}
+                      {(() => {
+                        if (!selectedEvents.has('all')) {
+                          return `No slots available for the selected events.`;
+                        }
+                        if (!offeredByPlayers.has('all') || !claimedByPlayers.has('all') || !selectedStatuses.has('all')) {
+                          return `No slots match the selected filters. Try adjusting your filters.`;
+                        }
+                        return 'No slots available in the marketplace.';
+                      })()}
                     </div>
                   ) : (
                     slotsArr.map((slot: any, idx: number) => {
@@ -336,6 +376,13 @@ const MarketplaceTab: React.FC<MarketplaceTabProps> = ({
                           acceptSwapEligible={acceptSwapEligible}
                           onClaimClick={onClaimClick}
                           adminMode={adminMode}
+                          onPlayerNameClick={(playerName, type) => {
+                            if (type === 'offered') {
+                              setOfferedByPlayers(new Set([playerName]));
+                            } else if (type === 'claimed') {
+                              setClaimedByPlayers(new Set([playerName]));
+                            }
+                          }}
                         />
                       );
                     })
