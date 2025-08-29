@@ -5,18 +5,21 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import SettlementOverview from './SettlementOverview';
+import SettlementBatchesView from './SettlementBatchesView';
 
 interface SettlementTabProps {
   currentPlayer?: string;
+  loggedInUser?: any;
 }
 
 interface SettlementOverviewRef {
   refresh: () => void;
 }
 
-export default function SettlementTab({ currentPlayer }: SettlementTabProps) {
+export default function SettlementTab({ currentPlayer, loggedInUser }: SettlementTabProps) {
   const [smartSettle, setSmartSettle] = useState(true);
   const [updatingPreference, setUpdatingPreference] = useState(false);
   const [showOptOutDialog, setShowOptOutDialog] = useState(false);
@@ -139,39 +142,53 @@ export default function SettlementTab({ currentPlayer }: SettlementTabProps) {
           </Card>
         )}
 
-        {/* Global Disclaimer */}
-        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <div className="flex items-start justify-between">
-            <div className="flex items-start gap-2">
-              <div className="text-blue-600 mt-0.5">
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div className="text-sm text-blue-800">
-                <p className="font-medium mb-1">Player Credit Calculation Details</p>
-                {!isInfoCollapsed && (
-                  <p className="text-xs">Calculates balance based on the marketplace transactions. 1h = €3.80, 2h = €7.60. Slots marked as settled are excluded. <br/>If you opt out of the Smart Settlement, <i>only</i> the slots you've given away will be excluded from the credit calculations.</p>
-                )}
+        {/* Settlement Tabs */}
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="overview">Credit Overview</TabsTrigger>
+            <TabsTrigger value="batches">Settlement Batches</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="overview" className="space-y-4">
+            {/* Global Disclaimer */}
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-start justify-between">
+                <div className="flex items-start gap-2">
+                  <div className="text-blue-600 mt-0.5">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="text-sm text-blue-800">
+                    <p className="font-medium mb-1">Player Credit Calculation Details</p>
+                    {!isInfoCollapsed && (
+                      <p className="text-xs">Calculates balance based on the marketplace transactions. 1h = €3.80, 2h = €7.60. Slots marked as settled are excluded. <br/>If you opt out of the Smart Settlement, <i>only</i> the slots you've given away will be excluded from the credit calculations.</p>
+                    )}
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsInfoCollapsed(!isInfoCollapsed)}
+                  className="p-1 h-auto text-blue-600 hover:text-blue-800"
+                >
+                  {isInfoCollapsed ? (
+                    <ChevronRight className="h-4 w-4" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4" />
+                  )}
+                </Button>
               </div>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsInfoCollapsed(!isInfoCollapsed)}
-              className="p-1 h-auto text-blue-600 hover:text-blue-800"
-            >
-              {isInfoCollapsed ? (
-                <ChevronRight className="h-4 w-4" />
-              ) : (
-                <ChevronDown className="h-4 w-4" />
-              )}
-            </Button>
-          </div>
-        </div>
 
-        {/* Settlement Overview */}
-        <SettlementOverview ref={settlementOverviewRef} currentPlayer={currentPlayer} />
+            {/* Settlement Overview */}
+            <SettlementOverview ref={settlementOverviewRef} currentPlayer={currentPlayer} />
+          </TabsContent>
+          
+          <TabsContent value="batches">
+            <SettlementBatchesView loggedInUser={loggedInUser} currentPlayer={currentPlayer} />
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Opt-out Confirmation Dialog */}

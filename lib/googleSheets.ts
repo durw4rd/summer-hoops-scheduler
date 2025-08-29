@@ -22,6 +22,29 @@ const RANGE_TOURNAMENT = `${SHEET_TOURNAMENT}!A1:D5`;
 /** The starting row for the schedule (for C column updates) */
 const SCHEDULE_START_ROW = 5;
 
+// Settlement Batch and Pairing Interfaces
+export interface SettlementBatch {
+  id: string;
+  name: string;
+  fromDate: string;
+  toDate: string;
+  status: 'active' | 'settled';
+  createdAt: string;
+  settledAt?: string;
+  linkedSlotsCount?: number;
+}
+
+export interface SettlementPairing {
+  id: string;
+  batchId: string;
+  creditorPlayer: string;
+  debtorPlayer: string;
+  amount: number;
+  status: 'pending' | 'completed';
+  createdAt: string;
+  completedAt?: string;
+}
+
 /**
  * Generates a unique ID for a slot
  */
@@ -823,4 +846,474 @@ export interface UserSettlementPreferences {
     color?: string;
     role?: string;
   };
+}
+
+/**
+ * Get all settlement batches from the Settlement Batches sheet
+ */
+export async function getSettlementBatches(): Promise<SettlementBatch[]> {
+  try {
+    const sheets = await getGoogleSheetsClient();
+    const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
+    
+    // Read the Settlement Batches sheet
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: 'Settlement Batches!A:H',
+    });
+    
+    const values = res.data.values || [];
+    if (values.length < 2) {
+      return [];
+    }
+    
+    const header = values[0];
+    const rows = values.slice(1);
+    
+    // Map columns according to the updated structure:
+    // A: Batch ID, B: Batch Name, C: Date Range From, D: Date Range To, E: Status, F: Created At, G: Completed At, H: Created By
+    const batches: SettlementBatch[] = rows.map(row => ({
+      id: row[0] || '',
+      name: row[1] || `Settlement Batch ${row[0] || ''}`,
+      fromDate: row[2] || '',
+      toDate: row[3] || '',
+      status: (row[4] as 'active' | 'settled') || 'active',
+      createdAt: row[5] || new Date().toISOString(),
+      settledAt: row[6] || undefined,
+      linkedSlotsCount: 0 // Will be calculated separately
+    }));
+    
+    // If no batches found, return the default batch
+    if (batches.length === 0) {
+      const defaultBatch: SettlementBatch = {
+        id: 'default-batch',
+        name: 'All Time Settlements',
+        fromDate: '2024-01-01',
+        toDate: new Date().toISOString().split('T')[0],
+        status: 'active',
+        createdAt: new Date('2024-01-01').toISOString()
+      };
+      return [defaultBatch];
+    }
+    
+    return batches;
+  } catch (error) {
+    console.error('Error reading settlement batches from spreadsheet:', error);
+    // Fallback to default batch
+    const defaultBatch: SettlementBatch = {
+      id: 'default-batch',
+      name: 'All Time Settlements',
+      fromDate: '2024-01-01',
+      toDate: new Date().toISOString().split('T')[0],
+      status: 'active',
+      createdAt: new Date('2024-01-01').toISOString()
+    };
+    return [defaultBatch];
+  }
+}
+
+/**
+ * Create a new settlement batch and update the marketplace sheet
+ */
+export async function createSettlementBatch({ name, fromDate, toDate }: { 
+  name: string; 
+  fromDate: string; 
+  toDate: string; 
+}): Promise<SettlementBatch> {
+  const sheets = await getGoogleSheetsClient();
+  const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
+  
+  // Parse dates and find slots that fall within the date range
+  const fromDateObj = new Date(fromDate);
+  const toDateObj = new Date(toDate);
+  
+  // Get all slots to find ones within the date range
+  const allSlots = await getAllSlots();
+  
+  // Filter slots within the date range that are eligible for settlement
+  const eligibleSlots = allSlots.filter(slot => {
+    if (!slot.Date || !slot.Status) return false;
+    
+    // Only include claimed, reassigned, or admin-reassigned slots
+    if (!['claimed', 'reassigned', 'admin-reassigned'].includes(slot.Status)) return false;
+    
+    // Exclude swapped slots
+    if (slot.SwapRequested === 'yes') return false;
+    
+    // Exclude already settled slots
+    if (slot.Settled === 'yes') return false;
+    
+    // Parse the date from DD.MM format
+    const [day, month] = slot.Date.split('.').map(Number);
+    if (isNaN(day) || isNaN(month)) return false;
+    
+    const slotDate = new Date(new Date().getFullYear(), month - 1, day);
+    return slotDate >= fromDateObj && slotDate <= toDateObj;
+  });
+  
+  const batchId = generateSlotId();
+  const now = new Date().toISOString();
+  
+  // Update the marketplace sheet to assign batch IDs to eligible slots
+  if (eligibleSlots.length > 0) {
+    const updates: any[] = [];
+    
+    for (const slot of eligibleSlots) {
+      if (slot.ID) {
+        // Find the row number for this slot
+        const { rowNumber } = await findSlotById(slot.ID);
+        
+        // Update the Batch ID column (L column, 12th column)
+        updates.push({
+          range: `${SHEET_MARKETPLACE}!L${rowNumber}`,
+          values: [[batchId]]
+        });
+      }
+    }
+    
+    // Apply all updates
+    if (updates.length > 0) {
+      await sheets.spreadsheets.values.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          valueInputOption: 'USER_ENTERED',
+          data: updates
+        }
+      });
+    }
+  }
+  
+  const batch: SettlementBatch = {
+    id: batchId,
+    name,
+    fromDate,
+    toDate,
+    status: 'active',
+    createdAt: now,
+    linkedSlotsCount: eligibleSlots.length
+  };
+  
+  return batch;
+}
+
+/**
+ * Get slots for a specific batch
+ */
+export async function getBatchSlots(batchId: string): Promise<any[]> {
+  if (batchId === 'default-batch') {
+    // For the default batch, return all eligible slots
+    const allSlots = await getAllSlots();
+    
+    return allSlots
+      .filter(slot => 
+        slot.Status === 'claimed' || 
+        slot.Status === 'reassigned' || 
+        slot.Status === 'admin-reassigned'
+      );
+  }
+  
+  // For specific batches, filter by batch ID
+  const allSlots = await getAllSlots();
+  
+  return allSlots
+    .filter(slot => slot.BatchID === batchId);
+}
+
+/**
+ * Create settlement pairings for a batch
+ */
+export async function createSettlementPairings(batchId: string): Promise<{ success: boolean; pairings: SettlementPairing[] }> {
+  try {
+    // Get all slots for this batch
+    const batchSlots = await getBatchSlots(batchId);
+    
+    if (batchSlots.length === 0) {
+      return { success: true, pairings: [] };
+    }
+    
+    // Get user preferences for smart settlement
+    const userMapping = await getUserMapping();
+    const userPreferences: UserSettlementPreferences = {};
+    
+    for (const [playerName, userData] of Object.entries(userMapping)) {
+      userPreferences[playerName] = {
+        smartSettle: userData.smartSettle,
+        email: userData.email,
+        color: userData.color,
+        role: userData.role
+      };
+    }
+    
+    // Get all slots to calculate settlements
+    const allSlots = await getAllSlots();
+    
+    // For specific batches, filter slots by batch ID
+    let slotsToCalculate = allSlots;
+    if (batchId !== 'default-batch') {
+      slotsToCalculate = allSlots.filter(slot => slot.BatchID === batchId);
+    }
+    
+    // Calculate settlements using the existing calculator
+    const { SettlementCalculator } = await import('./settlementCalculator');
+    const settlements = SettlementCalculator.calculateSettlements(slotsToCalculate, userPreferences);
+    
+    // Convert settlements to pairings
+    const pairings: SettlementPairing[] = settlements.map((settlement, index) => ({
+      id: `pairing-${batchId}-${index}`,
+      batchId,
+      creditorPlayer: settlement.toPlayer,
+      debtorPlayer: settlement.fromPlayer,
+      amount: settlement.amount,
+      status: 'pending',
+      createdAt: new Date().toISOString()
+    }));
+    
+    return { success: true, pairings };
+  } catch (error) {
+    console.error('Error creating settlement pairings:', error);
+    return { success: false, pairings: [] };
+  }
+}
+
+/**
+ * Get settlement pairings for a batch from the Settlement Pairings sheet
+ */
+export async function getSettlementPairings(batchId: string): Promise<SettlementPairing[]> {
+  try {
+    const sheets = await getGoogleSheetsClient();
+    const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
+    
+    // Read the Settlement Pairings sheet
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: 'Settlement Pairings!A:I',
+    });
+    
+    const values = res.data.values || [];
+    if (values.length < 2) {
+      return [];
+    }
+    
+    const header = values[0];
+    const rows = values.slice(1);
+    
+    // Filter pairings by batch ID and map columns according to the plan:
+    // A: Pairing ID, B: Batch ID, C: Creditor, D: Debtors (comma-separated), E: Total Amount, F: Status, G: Created At, H: Completed At, I: Notes
+    const pairings: SettlementPairing[] = rows
+      .filter(row => row[1] === batchId) // Filter by Batch ID (column B)
+      .map(row => {
+        // Parse debtors from comma-separated string
+        const debtors = row[3] ? row[3].split(',').map((d: string) => d.trim()) : [];
+        
+        // For now, create individual pairings for each debtor (this can be enhanced later)
+        return debtors.map((debtor: string, index: number) => ({
+          id: `${row[0]}-${index}`, // Pairing ID + index for uniqueness
+          batchId: row[1] || '',
+          creditorPlayer: row[2] || '',
+          debtorPlayer: debtor,
+          amount: parseFloat(row[4]) / debtors.length || 0, // Distribute total amount equally
+          status: (row[5] as 'pending' | 'completed') || 'pending',
+          createdAt: row[6] || new Date().toISOString(),
+          completedAt: row[7] || undefined
+        }));
+      })
+      .flat(); // Flatten the array of arrays
+    
+    return pairings;
+  } catch (error) {
+    console.error('Error getting settlement pairings:', error);
+    return [];
+  }
+}
+
+/**
+ * Mark a batch as settled and update all related marketplace slots
+ */
+export async function markBatchAsSettled(batchId: string): Promise<{ success: boolean }> {
+  try {
+    const sheets = await getGoogleSheetsClient();
+    const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
+    
+    // Get all slots for this batch
+    const batchSlots = await getBatchSlots(batchId);
+    
+    if (batchSlots.length === 0) {
+      return { success: true };
+    }
+    
+    // Update all slots in the batch to mark them as settled
+    const updates: any[] = [];
+    
+    for (const slotInfo of batchSlots) {
+      const { rowNumber } = await findSlotById(slotInfo.ID);
+      
+      // Update the Settled column (K column, 11th column)
+      updates.push({
+        range: `${SHEET_MARKETPLACE}!K${rowNumber}`,
+        values: [['yes']]
+      });
+    }
+    
+    // Apply all updates
+    if (updates.length > 0) {
+      await sheets.spreadsheets.values.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          valueInputOption: 'USER_ENTERED',
+          data: updates
+        }
+      });
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error marking batch as settled:', error);
+    return { success: false };
+  }
+}
+
+/**
+ * Mark a settlement transaction as completed
+ */
+export async function markSettlementTransactionCompleted({ 
+  pairingId, 
+  batchId, 
+  creditorPlayer, 
+  debtorPlayer,
+  completedBy
+}: { 
+  pairingId: string; 
+  batchId: string; 
+  creditorPlayer: string; 
+  debtorPlayer: string; 
+  completedBy: string;
+}): Promise<{ success: boolean }> {
+  try {
+    const sheets = await getGoogleSheetsClient();
+    const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
+    
+    // Read the Settlement Pairings sheet to find the pairing
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: 'Settlement Pairings!A:I',
+    });
+    
+    const values = res.data.values || [];
+    if (values.length < 2) {
+      return { success: false };
+    }
+    
+    const header = values[0];
+    const rows = values.slice(1);
+    
+    // Find the pairing row by matching creditor and debtor
+    let pairingRowIndex = -1;
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      if (row[1] === batchId && row[2] === creditorPlayer && row[3]?.includes(debtorPlayer)) {
+        pairingRowIndex = i + 2; // +2 because we skipped header and we need 1-based index
+        break;
+      }
+    }
+    
+    if (pairingRowIndex === -1) {
+      console.error('Pairing not found in spreadsheet');
+      return { success: false };
+    }
+    
+    // Update the Status column (F column, 6th column) to 'completed'
+    // and Completed At column (H column, 8th column) to current timestamp
+    await sheets.spreadsheets.values.batchUpdate({
+      spreadsheetId,
+      requestBody: {
+        valueInputOption: 'USER_ENTERED',
+        data: [
+          {
+            range: `Settlement Pairings!F${pairingRowIndex}`,
+            values: [['completed']]
+          },
+          {
+            range: `Settlement Pairings!H${pairingRowIndex}`,
+            values: [[new Date().toISOString()]]
+          }
+        ]
+      }
+    });
+    
+    // Create a new record in the Settlement Transactions sheet
+    // Columns: A: Transaction ID, B: Pairing ID, C: From Player, D: To Player, E: Amount, F: Status, G: Completed At, H: Completed By, I: Notes
+    const transactionId = generateSlotId(); // Reuse the ID generation function
+    const now = new Date().toISOString();
+    
+    // Get the amount from the pairing row (column E, 5th column)
+    const amount = parseFloat(rows[pairingRowIndex - 2][4]) || 0;
+    
+    await sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: 'Settlement Transactions!A:I',
+      valueInputOption: 'USER_ENTERED',
+      insertDataOption: 'INSERT_ROWS',
+      requestBody: {
+        values: [[
+          transactionId,           // Transaction ID
+          pairingId,               // Pairing ID
+          debtorPlayer,            // From Player (debtor pays)
+          creditorPlayer,          // To Player (creditor receives)
+          amount,                  // Amount
+          'completed',             // Status
+          now,                     // Completed At
+          completedBy,             // Completed By (who marked it as settled)
+          ''                       // Notes (empty for now)
+        ]]
+      }
+    });
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error marking settlement transaction as completed:', error);
+    return { success: false };
+  }
+}
+
+/**
+ * Get settlement transactions for a batch
+ */
+export async function getSettlementTransactions(batchId: string): Promise<any[]> {
+  try {
+    const sheets = await getGoogleSheetsClient();
+    const spreadsheetId = process.env.GOOGLE_SHEETS_ID!;
+    
+    // Read the Settlement Transactions sheet
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: 'Settlement Transactions!A:I',
+    });
+    
+    const values = res.data.values || [];
+    if (values.length < 2) {
+      return [];
+    }
+    
+    const header = values[0];
+    const rows = values.slice(1);
+    
+    // Filter transactions by batch ID (via pairing ID lookup)
+    // For now, return all transactions - this could be enhanced to filter by batch
+    const transactions = rows.map(row => ({
+      transactionId: row[0],
+      pairingId: row[1],
+      fromPlayer: row[2],
+      toPlayer: row[3],
+      amount: parseFloat(row[4]) || 0,
+      status: row[5],
+      completedAt: row[6],
+      completedBy: row[7],
+      notes: row[8]
+    }));
+    
+    return transactions;
+  } catch (error) {
+    console.error('Error getting settlement transactions:', error);
+    return [];
+  }
 }

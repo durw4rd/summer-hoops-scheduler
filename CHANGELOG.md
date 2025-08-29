@@ -2,6 +2,14 @@
 
 All notable changes to the Summer Hoops Scheduler project will be documented in this file.
 
+## [2.14.0] - 2025-08-29
+
+### Added
+- **Settlement Batch Management**: Ability to create a batch of marketplace slots that are used for generating settlement pairings
+- **Settlement Pairings**: Automated generation of creditor-debtor pairings for simplified settlements
+- **Individual Transaction Settlement**: Players can mark individual settlement transactions as completed
+- **Role-Based Access Control**: Admin-only batch creation and batch-level settlement operations
+
 ## [2.13.0] - 2025-08-28
 
 ### Added

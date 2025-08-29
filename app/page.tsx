@@ -706,7 +706,7 @@ export default function SummerHoopsScheduler() {
             ) : !isRegistered && session ? (
               <RegisterPrompt email={session.user?.email || ""} onRegister={handleRegister} />
             ) : (
-              <SettlementTab currentPlayer={playerName} />
+              <SettlementTab currentPlayer={playerName} loggedInUser={session} />
             )}
           </TabsContent>
           

@@ -99,6 +99,45 @@ interface UserSettlementPreferences {
 - Manages player opt-in/opt-out preferences for settlement calculations
 - Integrated with user mapping for comprehensive player data
 
+### SettlementBatch
+```typescript
+interface SettlementBatch {
+  id: string;
+  name: string;
+  fromDate: string;
+  toDate: string;
+  status: 'active' | 'settled';
+  createdAt: string;
+  settledAt?: string;
+  totalTransactions: number;
+  totalAmount: number;
+}
+```
+
+**Usage:**
+- Represents a settlement batch with date range and status
+- Tracks total transactions and amounts for settlement management
+- Used in batch-based settlement operations
+
+### SettlementPairing
+```typescript
+interface SettlementPairing {
+  id: string;
+  batchId: string;
+  creditorPlayer: string;
+  debtorPlayer: string;
+  amount: number;
+  status: 'pending' | 'completed';
+  createdAt: string;
+  completedAt?: string;
+}
+```
+
+**Usage:**
+- Represents individual settlement transactions between players
+- Links to settlement batches for organization
+- Tracks completion status for settlement progress
+
 ## API Routes
 
 ### Authentication & User Management
@@ -148,6 +187,39 @@ interface UserSettlementPreferences {
 - **Returns**: `{ success: boolean, data: { settlements: SimplifiedDebt[], playerCredits: PlayerCredit[], summary: object } }`
 - **Used by**: SettlementOverview component
 
+#### GET `/api/settlement/batches`
+- **Purpose**: Fetch all settlement batches
+- **Returns**: `{ success: boolean, data: SettlementBatch[] }`
+- **Used by**: SettlementBatchesView component
+
+#### POST `/api/settlement/batches`
+- **Purpose**: Create new settlement batch with date range
+- **Body**: `{ name: string, fromDate: string, toDate: string }`
+- **Headers**: `x-user-email: string`
+- **Returns**: `{ success: boolean, data: SettlementBatch }`
+- **Used by**: SettlementBatchesView component (admin only)
+
+#### GET `/api/settlement/pairings`
+- **Purpose**: Fetch settlement pairings for a batch
+- **Query**: `batchId: string`
+- **Returns**: `{ success: boolean, data: SettlementPairing[] }`
+- **Used by**: SettlementBatchesView component
+
+#### POST `/api/settlement/pairings`
+- **Purpose**: Create settlement pairings for a batch
+- **Body**: `{ batchId: string }`
+- **Headers**: `x-user-email: string`
+- **Returns**: `{ success: boolean, data: object }`
+- **Used by**: SettlementBatchesView component (admin only)
+
+#### POST `/api/settlement/transactions`
+- **Purpose**: Mark settlement transaction as completed
+- **Body**: `{ pairingId: string, batchId: string, creditorPlayer: string, debtorPlayer: string }`
+- **Headers**: `x-user-email: string`
+- **Returns**: `{ success: boolean, data: object }`
+- **Used by**: SettlementBatchesView component
+- **Functionality**: Updates Settlement Pairings status and creates record in Settlement Transactions sheet
+
 #### GET `/api/players/preferences`
 - **Purpose**: Fetch all player smartSettle preferences
 - **Returns**: `{ success: boolean, data: UserSettlementPreferences }`
@@ -163,10 +235,6 @@ interface UserSettlementPreferences {
 - **Purpose**: Get individual player settlement data
 - **Returns**: `{ success: boolean, data: { playerName: string, settlements: SimplifiedDebt[], summary: object, playerCredit: PlayerCredit, userPreference: object } }`
 - **Used by**: Individual player settlement views
-- **Purpose**: Retract an offered slot (entry in the Marketplace sheet remains but the status is changed to 'retracted')
-- **Body**: `{ slotId: string }`
-- **Returns**: `{ success: boolean }`
-- **Used by**: SlotCard component
 
 ### Slot Lifecycle Management
 
@@ -300,6 +368,7 @@ interface UserSettlementPreferences {
   - Smart settlement toggle for current player
   - Collapsible info panel explaining calculations
   - Integration with SettlementOverview component
+  - Settlement batches management
 - **Props**: currentPlayer
 
 ### SettlementOverview
@@ -312,12 +381,26 @@ interface UserSettlementPreferences {
 - **Props**: currentPlayer
 - **Ref**: Exposes refresh() method for parent components
 
+### SettlementBatchesView
+- **Purpose**: Manage settlement batches and pairings
+- **Key Features**:
+  - Create new settlement batches (admin only)
+  - Display existing batches with transaction counts and amounts
+  - Generate settlement pairings for batches
+  - Individual transaction settlement by creditors/debtors
+  - Batch-level settlement marking (admin only)
+  - Role-based access control for admin functions
+- **Props**: loggedInUser, currentPlayer
+- **State Management**: Batches, pairings, user role, form state
+
 ## Google Sheets Integration
 
 ### Sheet Structure
 - **Daily schedule**: Session details and player lists
 - **Marketplace**: Slot trading data (A:K columns)
 - **User mapping**: Player email and color mappings
+- **Settlement Batches**: Settlement batch management (A:H columns)
+- **Settlement Pairings**: Settlement transaction tracking (A:I columns)
 
 ### Key Functions (`lib/googleSheets.ts`)
 - `getSchedule()`: Fetch schedule data
@@ -333,6 +416,11 @@ interface UserSettlementPreferences {
 - `migrateExistingSlots()`: Add IDs to existing slots
 - `updateExpiredSlots()`: Mark slots as expired
 - `updateUserSmartSettlePreference()`: Update player smartSettle preference
+- `getSettlementBatches()`: Fetch settlement batches from Settlement Batches sheet
+- `getSettlementPairings()`: Fetch settlement pairings from Settlement Pairings sheet
+- `markSettlementTransactionCompleted()`: Mark individual settlement transactions as completed and create transaction records
+- `getSettlementTransactions()`: Fetch settlement transaction history
+- `markBatchAsSettled()`: Mark entire settlement batch as settled
 
 ### Settlement Calculation (`lib/settlementCalculator.ts`)
 - `calculatePlayerCredits()`: Calculate credits/debits for all players
