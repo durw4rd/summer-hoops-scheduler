@@ -146,7 +146,7 @@ export default function SettlementTab({ currentPlayer, loggedInUser }: Settlemen
         <Tabs defaultValue="overview" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="overview">Credit Overview</TabsTrigger>
-            <TabsTrigger value="batches">Settlement Batches</TabsTrigger>
+            <TabsTrigger value="batches">Transaction Pairings</TabsTrigger>
           </TabsList>
           
           <TabsContent value="overview" className="space-y-4">

@@ -309,13 +309,13 @@ export default function SettlementBatchesView({ loggedInUser, currentPlayer }: S
   };
 
   if (loading) {
-    return <div className="text-center py-8">Loading settlement batches...</div>;
+    return <div className="text-center py-8">Loading transaction pairings...</div>;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Settlement Batches</h2>
+        <h2 className="text-2xl font-bold">Transaction Pairings</h2>
         {userRole === 'admin' && (
           <Button onClick={() => setShowCreateForm(true)}>
             <Plus className="w-4 h-4 mr-2" />
@@ -526,7 +526,7 @@ export default function SettlementBatchesView({ loggedInUser, currentPlayer }: S
         {batches.length === 0 && (
           <Card>
             <CardContent className="text-center py-8 text-muted-foreground">
-              No settlement batches created yet. Create your first batch to get started.
+              No transaction pairings created yet. Create your first batch to get started.
             </CardContent>
           </Card>
         )}
